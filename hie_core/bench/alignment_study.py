@@ -15,7 +15,7 @@ import numpy as np
 from ..alignment import TileAligner, make_aligner, warp
 from ..datasets.synthetic import SyntheticBurst, generate_burst, scenarios
 from ..fusion import mean_fusion
-from ..io import jsonable, new_run_dir, write_record
+from ..io import git_state, jsonable, new_run_dir, write_record
 from ..pipeline import prepare, preset
 from ..raw import planes_to_gray
 from .run import RESULTS
@@ -48,6 +48,7 @@ VARIANTS = [
 
 
 def run(scene_names: tuple[str, ...] = ("daylight_static", "indoor_handheld", "night_handheld", "large_shake")):
+    git = git_state()
     run_dir = new_run_dir(RESULTS, "EXP-alignment-study", "test")
     rows: list[dict[str, Any]] = []
     for scene in scenarios("test"):
@@ -77,7 +78,7 @@ def run(scene_names: tuple[str, ...] = ("daylight_static", "indoor_handheld", "n
                   f"psnr {row['psnr_raw']:6.2f}  detail {row['detail_retention']:.3f}", flush=True)
     (run_dir / "rows.json").write_text(json.dumps(jsonable(rows), indent=2))
     write_record(run_dir, {"experiment_id": "EXP-alignment-study", "split": "test", "variants": VARIANTS,
-                           "fusion": "mean", "scenes": list(scene_names)})
+                           "fusion": "mean", "scenes": list(scene_names)}, git=git)
     print(f"→ {run_dir}")
     return run_dir
 

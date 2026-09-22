@@ -16,8 +16,8 @@ analysis → gap → hypothesis → approval gate → new method → benchmark �
 | 7 | Multi-frame mean | done: `mean`, `mean_noalign` |
 | 8 | Alignment comparison | done: 5 aligners; oracle-alignment study on synthetic data |
 | 9 | Benchmark framework | done: `hie bench synthetic`, `hie bench hdrplus`, HTML report |
-| 10 | Failure analysis | first pass in [benchmark.md](benchmark.md#failure-analysis) |
-| 11 | Research hypothesis | drafted in [research-report-001.md](research-report-001.md) |
+| 10 | Failure analysis | done: F1–F4 plus negative results in [benchmark.md](benchmark.md#failure-analysis) |
+| 11 | Research hypothesis | done: H1 in [research-report-001.md](research-report-001.md) |
 | 12 | **Approval gate** | **waiting for human approval**. No allegedly novel algorithm has been implemented. |
 
 ## Next work that does not need the approval gate

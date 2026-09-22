@@ -8,6 +8,7 @@
     hie bench synthetic                   EXP-001…005 on synthetic ground truth
     hie bench hdrplus                     baselines on local HDR+ bursts (+ visual report)
     hie bench alignment                   failure analysis: aligners vs oracle alignment
+    hie report RUN --export DIR           HTML report + Markdown tables from run directories
 """
 
 from __future__ import annotations
@@ -19,7 +20,7 @@ from pathlib import Path
 
 from .datasets import HDRPlusDataset, download_bursts, list_remote_bursts, load_dng_folder
 from .datasets.inspect import describe_burst
-from .io import new_run_dir, save_jpeg, save_tiff16, write_record
+from .io import git_state, new_run_dir, save_jpeg, save_tiff16, write_record
 from .io.experiment import REPO_ROOT
 from .pipeline import PRESETS, preset, process_burst
 
@@ -70,13 +71,14 @@ def cmd_inspect(args: argparse.Namespace) -> int:
 def cmd_process(args: argparse.Namespace) -> int:
     frames, ref, info = _load(args.target, args.archive)
     cfg = preset(args.preset)
+    git = git_state()
     result = process_burst(frames, cfg, ref_index=ref if args.use_dataset_reference else None)
     run = new_run_dir(args.out or RESULTS, "process", f"{Path(args.target).name}_{cfg.name}")
     save_jpeg(run / "output.jpg", result.display)
     if args.tiff:
         save_tiff16(run / "output.tiff", result.display)
     write_record(run, {"algorithm": cfg.name, "config": cfg, "input": info, "frame_count": len(frames),
-                       "timings_s": result.timings, "info": result.info})
+                       "timings_s": result.timings, "info": result.info}, git=git)
     print(f"{cfg.name}: {result.info['frames_used']} frames, {result.timings['total']:.1f}s → {run}")
     return 0
 
@@ -92,6 +94,17 @@ def cmd_bench(args: argparse.Namespace) -> int:
         from .bench.run import run_hdrplus_suite
         run_hdrplus_suite(args.presets, bursts=args.bursts, archive=args.archive, report=not args.no_report,
                           max_side=args.max_side)
+    return 0
+
+
+def cmd_report(args: argparse.Namespace) -> int:
+    from .report.html import build_report
+    findings = json.loads(Path(args.findings).read_text()) if args.findings else None
+    build_report(args.hdrplus_run, args.synthetic_run, findings)
+    if args.export:
+        from .report.markdown import export
+        export(Path(args.hdrplus_run), Path(args.synthetic_run), Path(args.alignment_run), Path(args.export))
+        print(f"tables → {args.export}/tables.md")
     return 0
 
 
@@ -127,6 +140,14 @@ def main(argv: list[str] | None = None) -> int:
     b.add_argument("--max-side", type=int, default=None, help="downscale renders for the visual report")
     b.add_argument("--no-report", action="store_true")
     b.set_defaults(fn=cmd_bench)
+
+    rp = sub.add_parser("report", help="build the HTML report (and Markdown tables) from run directories")
+    rp.add_argument("hdrplus_run")
+    rp.add_argument("--synthetic-run")
+    rp.add_argument("--alignment-run")
+    rp.add_argument("--findings", help="JSON list of finding sentences for the report header")
+    rp.add_argument("--export", help="directory for committed summaries + generated tables")
+    rp.set_defaults(fn=cmd_report)
 
     args = p.parse_args(argv)
     return args.fn(args)

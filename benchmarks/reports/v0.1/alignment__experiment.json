@@ -1,0 +1,70 @@
+{
+  "timestamp": "2026-09-22T19:38:55.624661+00:00",
+  "commit": "4257d78c63f5eb71da21e38b595d724ec8a49978",
+  "dirty": false,
+  "environment": {
+    "hie_version": "0.1.0",
+    "python": "3.11.15",
+    "platform": "Linux-6.18.44-fc-v37-x86_64-with-glibc2.39",
+    "numpy": "2.4.6",
+    "scipy": "1.17.1",
+    "opencv": "5.0.0",
+    "rawpy": "0.27.1"
+  },
+  "experiment_id": "EXP-alignment-study",
+  "split": "test",
+  "variants": [
+    [
+      "tiles (noise-aware)",
+      "hdrplus_tiles_noise",
+      "cubic"
+    ],
+    [
+      "tiles (no noise model)",
+      "hdrplus_tiles",
+      "cubic"
+    ],
+    [
+      "tiles, nearest warp",
+      "hdrplus_tiles_noise",
+      "nearest"
+    ],
+    [
+      "DIS optical flow",
+      "dis_flow",
+      "cubic"
+    ],
+    [
+      "phase correlation",
+      "phase_correlation",
+      "cubic"
+    ],
+    [
+      "oracle, cubic warp",
+      "oracle",
+      "cubic"
+    ],
+    [
+      "oracle, bilinear warp",
+      "oracle",
+      "linear"
+    ],
+    [
+      "oracle, nearest warp",
+      "oracle",
+      "nearest"
+    ],
+    [
+      "no alignment",
+      "none",
+      "cubic"
+    ]
+  ],
+  "fusion": "mean",
+  "scenes": [
+    "daylight_static",
+    "indoor_handheld",
+    "night_handheld",
+    "large_shake"
+  ]
+}

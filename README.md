@@ -9,7 +9,23 @@ exact ground truth. It is the measured baseline that any new HIE method must bea
 > ([docs/research-report-001.md](docs/research-report-001.md)). No method in this repository is
 > claimed to be novel. See [docs/prior-art.md](docs/prior-art.md) for what already exists.
 
-<!--RESULTS-->
+## v0.1 results at a glance
+
+Real RAW bursts (12 Google HDR+ bursts, ISO 50–2056, mean) and synthetic bursts with exact ground truth
+(6 scenes, test split). Full tables and failure analysis are in [docs/benchmark.md](docs/benchmark.md).
+
+| Method | Real: noise removed | Real: reference deviation | Synthetic: PSNR | Synthetic: motion-region PSNR | Synthetic: detail retained |
+|---|--:|--:|--:|--:|--:|
+| Single frame | 0.0 dB | 0.00 % | 36.7 dB | 35.1 dB | 0.98 |
+| Mean (aligned) | 9.4 dB | 2.53 % | 41.5 dB | 30.3 dB | 0.84 |
+| HDR+ merge (reproduction) | 7.7 dB | 0.03 % | 43.3 dB | 39.5 dB | 0.87 |
+| Confidence fusion | 9.3 dB | 0.50 % | 44.6 dB | 41.8 dB | 0.86 |
+| **HIE v0.1** | **14.8 dB** | 0.50 % | **47.0 dB** | **44.0 dB** | 0.81 |
+
+Plain averaging ghosts on motion, and robust weighting fixes that. HIE v0.1's noise-aware spatial
+denoising adds the most, at a measured cost in fine detail at night. The biggest open problem is
+alignment at very low light: perfect alignment would keep 0.88 of night detail, and today's best
+estimated alignment keeps 0.70.
 
 ## Quick start
 

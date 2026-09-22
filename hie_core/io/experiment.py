@@ -75,10 +75,14 @@ def new_run_dir(root: str | Path, experiment_id: str, label: str | None = None) 
     return path
 
 
-def write_record(run_dir: Path, record: dict[str, Any]) -> Path:
+def write_record(run_dir: Path, record: dict[str, Any], git: dict[str, Any] | None = None) -> Path:
+    """Write ``experiment.json``. Pass ``git`` captured with :func:`git_state` when the run *started*;
+    otherwise the state at write time is recorded and labelled as such."""
+    captured = "run_start" if git is not None else "record_write"
     record = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
-        **git_state(),
+        **(git if git is not None else git_state()),
+        "git_captured_at": captured,
         "environment": environment(),
         **record,
     }

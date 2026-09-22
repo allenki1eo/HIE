@@ -1,0 +1,68 @@
+{
+  "single": {
+    "noise_reduction_db": 0.0,
+    "ref_deviation_rate": 0.0,
+    "psnr_vs_hdrplus_merge": 44.48123033057007,
+    "runtime_s": 9.60980178191653
+  },
+  "single_denoised": {
+    "noise_reduction_db": 5.219720619714638,
+    "ref_deviation_rate": 0.0,
+    "psnr_vs_hdrplus_merge": 47.03493765593655,
+    "runtime_s": 12.8199089202501
+  },
+  "mean_noalign": {
+    "noise_reduction_db": 8.33082413274124,
+    "ref_deviation_rate": 0.22886283238156604,
+    "psnr_vs_hdrplus_merge": 33.31447352463458,
+    "runtime_s": 13.832545267583404
+  },
+  "mean": {
+    "noise_reduction_db": 9.395002831657832,
+    "ref_deviation_rate": 0.025349019071533616,
+    "psnr_vs_hdrplus_merge": 43.5573663532126,
+    "runtime_s": 24.93957202008346
+  },
+  "median": {
+    "noise_reduction_db": 7.5202517243879505,
+    "ref_deviation_rate": 0.025929962852468152,
+    "psnr_vs_hdrplus_merge": 42.81163159684571,
+    "runtime_s": 30.44956884541701
+  },
+  "weighted": {
+    "noise_reduction_db": 9.386132701210434,
+    "ref_deviation_rate": 0.025422034663289003,
+    "psnr_vs_hdrplus_merge": 43.02905935896846,
+    "runtime_s": 26.365819808416365
+  },
+  "motion_aware": {
+    "noise_reduction_db": 9.278231102622042,
+    "ref_deviation_rate": 0.004838610531657409,
+    "psnr_vs_hdrplus_merge": 48.88947352577307,
+    "runtime_s": 26.888477758333313
+  },
+  "flow_mean": {
+    "noise_reduction_db": 10.979780897552693,
+    "ref_deviation_rate": 0.023343535605381438,
+    "psnr_vs_hdrplus_merge": 43.29827299528249,
+    "runtime_s": 14.574720793416645
+  },
+  "hdrplus_wiener": {
+    "noise_reduction_db": 7.67457227865786,
+    "ref_deviation_rate": 0.00033294517297343643,
+    "psnr_vs_hdrplus_merge": 50.251846322837906,
+    "runtime_s": 33.19631712975009
+  },
+  "confidence": {
+    "noise_reduction_db": 9.34872491545788,
+    "ref_deviation_rate": 0.004996415285232041,
+    "psnr_vs_hdrplus_merge": 48.1543706379081,
+    "runtime_s": 27.74789209716664
+  },
+  "hie_v0.1": {
+    "noise_reduction_db": 14.758476790355289,
+    "ref_deviation_rate": 0.005017029595413136,
+    "psnr_vs_hdrplus_merge": 48.48757786950139,
+    "runtime_s": 30.76867946274994
+  }
+}

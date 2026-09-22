@@ -254,13 +254,13 @@ function renderTiles() {
   const b = burst();
   $("tiles").innerHTML = b.sources.map(s => {
     const m = b.metrics[s];
-    const sub = m ? `−${fmt(m.noise_reduction_db, 1)} dB` : SRC[s].note;
+    const sub = !m ? SRC[s].note : (m.noise_reduction_db > 0.05 ? `−${fmt(m.noise_reduction_db, 1)} dB noise` : "reference frame");
     return `<button class="tile" data-id="${s}" aria-pressed="${s === state.b}"><span class="tile-img" data-src="${s}"></span>
       <span class="tile-label">${SRC[s].label}</span><span class="tile-sub">${sub}</span></button>`;
   }).join("");
   $("tiles").querySelectorAll(".tile-img").forEach(el => spriteStyle(el, b, el.dataset.src));
   $("thumbs").innerHTML = Object.entries(b.thumbs).map(([s, url]) =>
-    `<figure><div class="thumb-box"><img src="${url}" alt="${SRC[s].label}, full frame" loading="lazy"></div><figcaption>${SRC[s].label}</figcaption></figure>`).join("");
+    `<figure><div class="thumb-box"><img src="${url}" alt="${SRC[s].label}, full frame"></div><figcaption>${SRC[s].label}</figcaption></figure>`).join("");
 }
 
 function render() { renderControls(); renderWipe(); renderPanel(); renderTiles(); save(); }
@@ -275,15 +275,14 @@ $("pixel").addEventListener("change", e => { document.body.classList.toggle("pix
 document.body.classList.add("pixel");
 
 function bars(rows, cols, highlight) {
-  const head = `<tr><th>Method</th>${cols.map(c => `<th>${c.label}<small>${c.hint}</small></th>`).join("")}</tr>`;
+  // Every bar starts at zero and its length is proportional to the value; the header says which direction is better.
+  const head = `<tr><th>Method</th>${cols.map(c => `<th>${c.label} ${c.better}<small>${c.hint}</small></th>`).join("")}</tr>`;
   const body = rows.map(r => `<tr class="${r.id === highlight ? "hl" : ""}"><td class="method">${SRC[r.id]?.label || r.id}<small>${SRC[r.id]?.note || ""}</small></td>` +
     cols.map(c => {
       const v = r[c.key];
       if (v === null || v === undefined || Number.isNaN(v)) return `<td class="num">—</td>`;
-      const vals = rows.map(x => x[c.key]).filter(x => x !== null && !Number.isNaN(x));
-      const lo = c.zero ? 0 : Math.min(...vals), hi = Math.max(...vals);
-      const frac = hi > lo ? (v - lo) / (hi - lo) : 1;
-      const w = Math.max(2, (c.invert ? 1 - frac : frac) * 100);
+      const hi = Math.max(...rows.map(x => x[c.key]).filter(x => x !== null && !Number.isNaN(x)));
+      const w = hi > 0 ? Math.max(0, v / hi) * 100 : 0;
       return `<td class="num"><div class="cell" title="${c.label}: ${c.fmt(v)}"><span>${c.fmt(v)}</span><span class="bar"><i style="width:${w}%"></i></span></div></td>`;
     }).join("") + `</tr>`).join("");
   return head + body;
@@ -291,19 +290,19 @@ function bars(rows, cols, highlight) {
 
 const realRows = DATA.presets.map(p => ({ id: p, ...DATA.real[p] }));
 $("real").innerHTML = bars(realRows, [
-  { key: "noise_reduction_db", label: "Noise removed", hint: "dB · longer bar = more", fmt: v => fmt(v, 2), zero: true },
-  { key: "ref_deviation_rate", label: "Reference deviation", hint: "% of pixels · longer bar = fewer", fmt: v => fmt(v * 100, 3) + "%", invert: true, zero: true },
-  { key: "psnr_vs_hdrplus_merge", label: "Agreement with Google merge", hint: "PSNR dB · longer bar = closer", fmt: v => fmt(v, 2) },
-  { key: "runtime_s", label: "Runtime", hint: "s per 12 MP burst · Python · longer bar = faster", fmt: v => fmt(v, 1), invert: true, zero: true },
+  { key: "noise_reduction_db", label: "Noise removed", better: "↑", hint: "dB vs the reference frame", fmt: v => fmt(v, 2) },
+  { key: "ref_deviation_rate", label: "Reference deviation", better: "↓", hint: "% of pixels (ghosts, blur)", fmt: v => fmt(v * 100, 3) + "%" },
+  { key: "psnr_vs_hdrplus_merge", label: "Agreement with Google merge", better: "", hint: "PSNR dB · similarity, not quality", fmt: v => fmt(v, 2) },
+  { key: "runtime_s", label: "Runtime", better: "↓", hint: "s per 12 MP burst · Python", fmt: v => fmt(v, 1) },
 ], "hie_v0.1");
 
 const synthRows = Object.entries(DATA.synthetic).map(([id, v]) => ({ id, ...v }));
 $("synth").innerHTML = synthRows.length ? bars(synthRows, [
-  { key: "psnr_raw", label: "PSNR", hint: "raw, dB · longer bar = better", fmt: v => fmt(v, 2) },
-  { key: "psnr_raw_motion", label: "PSNR in motion", hint: "moving-object region, dB", fmt: v => fmt(v, 2) },
-  { key: "detail_retention", label: "Detail retained", hint: "1.0 = all · longer bar = more", fmt: v => fmt(v, 3) },
-  { key: "ssim_display", label: "SSIM", hint: "fixed display render", fmt: v => fmt(v, 4) },
-  { key: "delta_e2000", label: "ΔE2000", hint: "mean colour error · longer bar = smaller", fmt: v => fmt(v, 2), invert: true },
+  { key: "psnr_raw", label: "PSNR", better: "↑", hint: "raw, dB", fmt: v => fmt(v, 2) },
+  { key: "psnr_raw_motion", label: "PSNR in motion", better: "↑", hint: "moving-object region, dB", fmt: v => fmt(v, 2) },
+  { key: "detail_retention", label: "Detail retained", better: "↑", hint: "1.0 = all fine detail kept", fmt: v => fmt(v, 3) },
+  { key: "ssim_display", label: "SSIM", better: "↑", hint: "fixed display render", fmt: v => fmt(v, 4) },
+  { key: "delta_e2000", label: "ΔE2000", better: "↓", hint: "mean colour error", fmt: v => fmt(v, 2) },
 ], "hie_v0.1") : `<tr><td>No synthetic run found.</td></tr>`;
 
 $("meta-line").innerHTML = `<span>${DATA.bursts.length} real bursts</span><span>${DATA.presets.length} methods</span><span>commit ${DATA.commit}${DATA.dirty ? " (dirty)" : ""}</span><span>${DATA.date}</span>`;

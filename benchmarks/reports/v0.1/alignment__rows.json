@@ -1,0 +1,254 @@
+[
+  {
+    "scenario": "daylight_static",
+    "variant": "tiles (noise-aware)",
+    "median_flow_error_px": 0.2882038950920105,
+    "psnr_raw": 44.71305080433136,
+    "detail_retention": 0.9439795613288879
+  },
+  {
+    "scenario": "daylight_static",
+    "variant": "tiles (no noise model)",
+    "median_flow_error_px": 0.5039243698120117,
+    "psnr_raw": 44.70636841952932,
+    "detail_retention": 0.943777859210968
+  },
+  {
+    "scenario": "daylight_static",
+    "variant": "tiles, nearest warp",
+    "median_flow_error_px": 0.2882038950920105,
+    "psnr_raw": 42.1063451286397,
+    "detail_retention": 0.9118926525115967
+  },
+  {
+    "scenario": "daylight_static",
+    "variant": "DIS optical flow",
+    "median_flow_error_px": 0.2738136649131775,
+    "psnr_raw": 42.87088007572706,
+    "detail_retention": 0.9201233386993408
+  },
+  {
+    "scenario": "daylight_static",
+    "variant": "phase correlation",
+    "median_flow_error_px": 0.26058143377304077,
+    "psnr_raw": 38.541204801940104,
+    "detail_retention": 0.8699203729629517
+  },
+  {
+    "scenario": "daylight_static",
+    "variant": "oracle, cubic warp",
+    "median_flow_error_px": 0.0,
+    "psnr_raw": 43.54144311265132,
+    "detail_retention": 0.9192143082618713
+  },
+  {
+    "scenario": "daylight_static",
+    "variant": "oracle, bilinear warp",
+    "median_flow_error_px": 0.0,
+    "psnr_raw": 40.2174422578469,
+    "detail_retention": 0.7751531004905701
+  },
+  {
+    "scenario": "daylight_static",
+    "variant": "oracle, nearest warp",
+    "median_flow_error_px": 0.0,
+    "psnr_raw": 41.117814005336285,
+    "detail_retention": 0.8717119693756104
+  },
+  {
+    "scenario": "daylight_static",
+    "variant": "no alignment",
+    "median_flow_error_px": 0.806450605392456,
+    "psnr_raw": 33.08691837839699,
+    "detail_retention": 0.6125830411911011
+  },
+  {
+    "scenario": "indoor_handheld",
+    "variant": "tiles (noise-aware)",
+    "median_flow_error_px": 0.45986613631248474,
+    "psnr_raw": 46.23378345595185,
+    "detail_retention": 0.9398967623710632
+  },
+  {
+    "scenario": "indoor_handheld",
+    "variant": "tiles (no noise model)",
+    "median_flow_error_px": 0.6838784217834473,
+    "psnr_raw": 46.623383020155984,
+    "detail_retention": 0.9421437978744507
+  },
+  {
+    "scenario": "indoor_handheld",
+    "variant": "tiles, nearest warp",
+    "median_flow_error_px": 0.45986613631248474,
+    "psnr_raw": 45.48087482334687,
+    "detail_retention": 0.9107214212417603
+  },
+  {
+    "scenario": "indoor_handheld",
+    "variant": "DIS optical flow",
+    "median_flow_error_px": 0.5174533128738403,
+    "psnr_raw": 46.35507499900308,
+    "detail_retention": 0.91008061170578
+  },
+  {
+    "scenario": "indoor_handheld",
+    "variant": "phase correlation",
+    "median_flow_error_px": 0.5379768013954163,
+    "psnr_raw": 45.986895573748036,
+    "detail_retention": 0.8723116517066956
+  },
+  {
+    "scenario": "indoor_handheld",
+    "variant": "oracle, cubic warp",
+    "median_flow_error_px": 0.0,
+    "psnr_raw": 46.822340146859396,
+    "detail_retention": 0.9344369173049927
+  },
+  {
+    "scenario": "indoor_handheld",
+    "variant": "oracle, bilinear warp",
+    "median_flow_error_px": 0.0,
+    "psnr_raw": 47.63168966018515,
+    "detail_retention": 0.8031853437423706
+  },
+  {
+    "scenario": "indoor_handheld",
+    "variant": "oracle, nearest warp",
+    "median_flow_error_px": 0.0,
+    "psnr_raw": 45.37433311522456,
+    "detail_retention": 0.900922954082489
+  },
+  {
+    "scenario": "indoor_handheld",
+    "variant": "no alignment",
+    "median_flow_error_px": 1.7663674354553223,
+    "psnr_raw": 38.50998397156747,
+    "detail_retention": 0.15869075059890747
+  },
+  {
+    "scenario": "night_handheld",
+    "variant": "tiles (noise-aware)",
+    "median_flow_error_px": 1.354952335357666,
+    "psnr_raw": 36.301332938262824,
+    "detail_retention": 0.6446474194526672
+  },
+  {
+    "scenario": "night_handheld",
+    "variant": "tiles (no noise model)",
+    "median_flow_error_px": 3.8948121070861816,
+    "psnr_raw": 37.084017753809555,
+    "detail_retention": 0.5964866876602173
+  },
+  {
+    "scenario": "night_handheld",
+    "variant": "tiles, nearest warp",
+    "median_flow_error_px": 1.354952335357666,
+    "psnr_raw": 36.050605606631635,
+    "detail_retention": 0.6124571561813354
+  },
+  {
+    "scenario": "night_handheld",
+    "variant": "DIS optical flow",
+    "median_flow_error_px": 2.2373852729797363,
+    "psnr_raw": 37.102237061734925,
+    "detail_retention": 0.6428897380828857
+  },
+  {
+    "scenario": "night_handheld",
+    "variant": "phase correlation",
+    "median_flow_error_px": 0.8097772598266602,
+    "psnr_raw": 36.95046808728685,
+    "detail_retention": 0.6980686783790588
+  },
+  {
+    "scenario": "night_handheld",
+    "variant": "oracle, cubic warp",
+    "median_flow_error_px": 0.0,
+    "psnr_raw": 37.3150989066959,
+    "detail_retention": 0.8815882205963135
+  },
+  {
+    "scenario": "night_handheld",
+    "variant": "oracle, bilinear warp",
+    "median_flow_error_px": 0.0,
+    "psnr_raw": 39.12257180403033,
+    "detail_retention": 0.7455589771270752
+  },
+  {
+    "scenario": "night_handheld",
+    "variant": "oracle, nearest warp",
+    "median_flow_error_px": 0.0,
+    "psnr_raw": 36.10137489021792,
+    "detail_retention": 0.8332961201667786
+  },
+  {
+    "scenario": "night_handheld",
+    "variant": "no alignment",
+    "median_flow_error_px": 1.8446041345596313,
+    "psnr_raw": 36.02117712623977,
+    "detail_retention": 0.17208747565746307
+  },
+  {
+    "scenario": "large_shake",
+    "variant": "tiles (noise-aware)",
+    "median_flow_error_px": 0.34872913360595703,
+    "psnr_raw": 47.39187864281571,
+    "detail_retention": 0.9400918483734131
+  },
+  {
+    "scenario": "large_shake",
+    "variant": "tiles (no noise model)",
+    "median_flow_error_px": 0.5297901630401611,
+    "psnr_raw": 47.5271870650589,
+    "detail_retention": 0.9405427575111389
+  },
+  {
+    "scenario": "large_shake",
+    "variant": "tiles, nearest warp",
+    "median_flow_error_px": 0.34872913360595703,
+    "psnr_raw": 45.69491306733098,
+    "detail_retention": 0.9090103507041931
+  },
+  {
+    "scenario": "large_shake",
+    "variant": "DIS optical flow",
+    "median_flow_error_px": 0.36208581924438477,
+    "psnr_raw": 46.35886068137394,
+    "detail_retention": 0.9191592335700989
+  },
+  {
+    "scenario": "large_shake",
+    "variant": "phase correlation",
+    "median_flow_error_px": 2.1102209091186523,
+    "psnr_raw": 33.31362993254379,
+    "detail_retention": 0.5081121325492859
+  },
+  {
+    "scenario": "large_shake",
+    "variant": "oracle, cubic warp",
+    "median_flow_error_px": 0.0,
+    "psnr_raw": 47.4359521289785,
+    "detail_retention": 0.9298081398010254
+  },
+  {
+    "scenario": "large_shake",
+    "variant": "oracle, bilinear warp",
+    "median_flow_error_px": 0.0,
+    "psnr_raw": 45.72105387320197,
+    "detail_retention": 0.7907072305679321
+  },
+  {
+    "scenario": "large_shake",
+    "variant": "oracle, nearest warp",
+    "median_flow_error_px": 0.0,
+    "psnr_raw": 44.891921805527666,
+    "detail_retention": 0.8829905986785889
+  },
+  {
+    "scenario": "large_shake",
+    "variant": "no alignment",
+    "median_flow_error_px": 7.332551956176758,
+    "psnr_raw": 28.450155118326418,
+    "detail_retention": 0.13766831159591675
+  }
+]

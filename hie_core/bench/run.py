@@ -17,7 +17,7 @@ import numpy as np
 
 from ..color import luminance
 from ..datasets import HDRPlusDataset
-from ..io import jsonable, new_run_dir, save_jpeg, write_record
+from ..io import git_state, jsonable, new_run_dir, save_jpeg, write_record
 from ..io.experiment import REPO_ROOT
 from ..metrics import flat_mask, psnr, reference_deviation_rate, residual_noise
 from ..pipeline import PipelineConfig, prepare, preset, process_burst, render
@@ -42,6 +42,7 @@ def _summarise(rows: list[dict], keys: list[str], by: str = "preset") -> dict[st
 
 def run_synthetic_suite(presets: list[str] | None = None, split: str = "test") -> Path:
     presets = presets or SYNTHETIC_PRESETS
+    git = git_state()
     run = new_run_dir(RESULTS, "EXP-synthetic", split)
     rows = synthetic.run(presets, split, progress=lambda r: print(
         f"  {r['scenario']:16s} {r['preset']:16s} psnr {r['psnr_raw']:6.2f}  motion {r['psnr_raw_motion']:6.2f}"
@@ -52,7 +53,7 @@ def run_synthetic_suite(presets: list[str] | None = None, split: str = "test") -
     summary = _summarise(rows, keys)
     (run / "summary.json").write_text(json.dumps(summary, indent=2))
     write_record(run, {"experiment_id": "EXP-synthetic", "split": split, "presets": presets,
-                       "configs": {p: preset(p) for p in presets}, "dataset": "synthetic"})
+                       "configs": {p: preset(p) for p in presets}, "dataset": "synthetic"}, git=git)
     print(f"→ {run}")
     return run
 
@@ -127,6 +128,7 @@ def run_hdrplus_suite(
     report: bool = True, max_side: int | None = 1600,
 ) -> Path:
     presets = presets or HDRPLUS_PRESETS
+    git = git_state()
     ds = HDRPlusDataset(archive=archive)
     ids = bursts or ds.list_samples()
     if not ids:
@@ -211,7 +213,7 @@ def run_hdrplus_suite(
     (run / "rows.json").write_text(json.dumps(jsonable(rows), indent=2))
     (run / "summary.json").write_text(json.dumps(_summarise(rows, keys), indent=2))
     write_record(run, {"experiment_id": "EXP-hdrplus", "dataset": f"google-hdr-plus/{archive}", "bursts": ids,
-                       "presets": presets, "configs": {p: preset(p) for p in presets}})
+                       "presets": presets, "configs": {p: preset(p) for p in presets}}, git=git)
     if report:
         from ..report.html import build_report
         build_report(run)
