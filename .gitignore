@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+build/
+dist/
+
+# Datasets are never committed (see datasets/*/README.md)
+datasets/google-hdr-plus/*
+!datasets/google-hdr-plus/README.md
+datasets/pixel6/*
+!datasets/pixel6/README.md
+
+# Generated outputs stay local; reports (markdown/json summaries) are committed
+benchmarks/results/*
+!benchmarks/results/README.md
+benchmarks/reports/**/*.jpg
+benchmarks/reports/**/*.png
+benchmarks/reports/**/*.tif*
+benchmarks/reports/**/*.html
+research/experiments/**/output*
+*.dng
+*.DNG
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store

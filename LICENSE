@@ -1,0 +1,11 @@
+Copyright (c) 2026 Hanson Technologies. All rights reserved.
+
+This repository is proprietary research code of Hanson Technologies. No license to
+use, copy, modify or distribute it is granted except by written permission.
+
+The licensing model (for example, open-sourcing selected research components) is an
+open decision for the project owner; see docs/research-plan.md.
+
+Third-party data is NOT covered by this notice and is not redistributed here:
+the Google HDR+ Burst Photography Dataset is licensed CC BY-SA by Google
+(see datasets/google-hdr-plus/README.md).
