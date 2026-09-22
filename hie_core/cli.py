@@ -7,6 +7,7 @@
     hie process PATH|BURST_ID -p hie_v0.1 render a burst (writes a new run directory)
     hie bench synthetic                   EXP-001…005 on synthetic ground truth
     hie bench hdrplus                     baselines on local HDR+ bursts (+ visual report)
+    hie bench alignment                   failure analysis: aligners vs oracle alignment
 """
 
 from __future__ import annotations
@@ -81,7 +82,10 @@ def cmd_process(args: argparse.Namespace) -> int:
 
 
 def cmd_bench(args: argparse.Namespace) -> int:
-    if args.suite == "synthetic":
+    if args.suite == "alignment":
+        from .bench.alignment_study import run
+        run()
+    elif args.suite == "synthetic":
         from .bench.run import run_synthetic_suite
         run_synthetic_suite(args.presets, split=args.split)
     else:
@@ -116,7 +120,7 @@ def main(argv: list[str] | None = None) -> int:
     r.set_defaults(fn=cmd_process)
 
     b = sub.add_parser("bench", help="run a benchmark suite")
-    b.add_argument("suite", choices=["synthetic", "hdrplus"])
+    b.add_argument("suite", choices=["synthetic", "hdrplus", "alignment"])
     b.add_argument("--presets", nargs="+", default=None)
     b.add_argument("--split", default="test", choices=["test", "tune"])
     b.add_argument("--bursts", nargs="*", default=None)
