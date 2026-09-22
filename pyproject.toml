@@ -29,6 +29,9 @@ hie = "hie_core.cli:main"
 [tool.setuptools.packages.find]
 include = ["hie_core*"]
 
+[tool.setuptools.package-data]
+hie_core = ["report/template.html"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = [

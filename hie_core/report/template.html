@@ -1,0 +1,312 @@
+<title>HIE Baseline Bench</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..100,500..800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root {
+  --ground: #eeeeec;
+  --surface: #f8f8f7;
+  --surround: #767676;          /* neutral mid-grey behind images (ISO 3664 idea) */
+  --ink: #161716;
+  --ink-2: #4a4c4a;
+  --ink-3: #6d706d;
+  --rule: #d4d5d2;
+  --accent: #1f8a57;            /* Bayer green */
+  --accent-ink: #176a43;
+  --accent-soft: #dcefe4;
+  --bar-track: #e3e4e1;
+  --r: #c8453b; --g: #1f8a57; --b: #2f63c4;
+  --display: "Archivo", "Arial Narrow", system-ui, sans-serif;
+  --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #191a19; --surface: #212221; --surround: #5a5a5a;
+    --ink: #ececea; --ink-2: #b9bbb7; --ink-3: #8f928e; --rule: #333533;
+    --accent: #34a36b; --accent-ink: #6fd09c; --accent-soft: #1d3327; --bar-track: #2c2e2c;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #191a19; --surface: #212221; --surround: #5a5a5a;
+  --ink: #ececea; --ink-2: #b9bbb7; --ink-3: #8f928e; --rule: #333533;
+  --accent: #34a36b; --accent-ink: #6fd09c; --accent-soft: #1d3327; --bar-track: #2c2e2c;
+}
+* { box-sizing: border-box; }
+body { background: var(--ground); color: var(--ink); font: 15px/1.55 var(--body); }
+.wrap { max-width: 1180px; margin: 0 auto; padding-inline: 20px; padding-block: 28px 64px; display: grid; gap: 48px; }
+h1, h2, h3 { font-family: var(--display); font-stretch: 82%; letter-spacing: -0.01em; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(34px, 5vw, 52px); font-weight: 800; line-height: 1.02; }
+h2 { font-size: 26px; font-weight: 700; }
+h3 { font-size: 17px; font-weight: 700; }
+p { margin: 0; max-width: 68ch; }
+.eyebrow { font: 500 12px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+a { color: var(--accent-ink); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+header { display: grid; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; }
+.cfa { display: grid; grid-template-columns: 9px 9px; gap: 2px; }
+.cfa i { width: 9px; height: 9px; border-radius: 1px; }
+.meta-line { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--ink-2); font-size: 13px; }
+.lede { font-size: 17px; color: var(--ink-2); }
+
+.findings { display: grid; gap: 14px; }
+.findings ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; max-width: 80ch; }
+.findings li { padding-left: 18px; position: relative; }
+.findings li::before { content: ""; position: absolute; left: 0; top: .62em; width: 8px; height: 8px; background: var(--accent); border-radius: 1px; }
+
+section { display: grid; gap: 18px; }
+.head { display: grid; gap: 6px; }
+
+/* ---------- viewer ---------- */
+.controls { display: grid; gap: 12px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font: 500 12.5px/1 var(--mono); padding: 8px 10px; border-radius: 6px; border: 1px solid var(--rule);
+        background: var(--surface); color: var(--ink-2); cursor: pointer; font-variant-numeric: tabular-nums; }
+.chip[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--ink); }
+.chip b { font-weight: 500; color: var(--ink); }
+.seg { display: inline-flex; border: 1px solid var(--rule); border-radius: 7px; overflow: hidden; flex-wrap: wrap; }
+.seg button { font: 500 13px/1 var(--body); padding: 9px 12px; border: 0; background: var(--surface); color: var(--ink-2); cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--rule); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--ground); }
+.row { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; }
+label.sel { display: inline-flex; gap: 8px; align-items: center; font-size: 13px; color: var(--ink-2); }
+select { font: 13px var(--body); padding: 7px 8px; border-radius: 6px; border: 1px solid var(--rule); background: var(--surface); color: var(--ink); max-width: 60vw; }
+.toggle { display: inline-flex; gap: 8px; align-items: center; font-size: 13px; color: var(--ink-2); }
+
+.stage { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 20px; align-items: start; }
+@media (max-width: 860px) { .stage { grid-template-columns: 1fr; } }
+.surround { background: var(--surround); border-radius: 10px; padding: clamp(10px, 3vw, 28px); display: grid; place-items: center; }
+.wipe { position: relative; width: 100%; max-width: 640px; aspect-ratio: 1; touch-action: none; user-select: none; }
+.layer { position: absolute; inset: 0; background-repeat: no-repeat; }
+.pixel .layer, .pixel .tile-img { image-rendering: pixelated; }
+.divider { position: absolute; top: 0; bottom: 0; width: 2px; background: #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.35); pointer-events: none; }
+.divider::after { content: ""; position: absolute; top: 50%; left: 50%; width: 26px; height: 26px; margin: -13px 0 0 -13px;
+                  border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.4); }
+.tag { position: absolute; top: 10px; font: 500 11.5px/1 var(--mono); padding: 6px 8px; border-radius: 4px; background: rgba(20,20,20,.72); color: #f4f4f4; pointer-events: none; }
+.tag.a { left: 10px; } .tag.b { right: 10px; }
+.wipe input[type=range] { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: ew-resize; margin: 0; }
+.panel { background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 16px; display: grid; gap: 12px; }
+dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: 13px; }
+dt { color: var(--ink-3); } dd { margin: 0; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.note { font-size: 12.5px; color: var(--ink-3); }
+
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.tile { display: grid; gap: 6px; background: none; border: 0; padding: 0; text-align: left; cursor: pointer; color: inherit; font: inherit; }
+.tile-img { width: 100%; aspect-ratio: 1; background-repeat: no-repeat; border-radius: 4px; outline: 2px solid transparent; outline-offset: 2px; }
+.tile[aria-pressed="true"] .tile-img { outline-color: var(--accent); }
+.tile-label { font-size: 12.5px; font-weight: 600; line-height: 1.25; }
+.tile-sub { font: 11.5px/1.2 var(--mono); color: var(--ink-3); }
+.thumbs { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.thumbs figure { margin: 0; display: grid; gap: 6px; }
+.thumbs img { width: 100%; border-radius: 4px; display: block; }
+.thumbs figcaption { font-size: 12.5px; color: var(--ink-2); }
+.thumb-box { background: var(--surround); border-radius: 8px; padding: 8px; }
+
+/* ---------- tables ---------- */
+.table-wrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 10px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; min-width: 760px; font-size: 13px; }
+th, td { padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--rule); vertical-align: middle; }
+tr:last-child td { border-bottom: 0; }
+th { font: 600 11.5px/1.3 var(--body); color: var(--ink-3); text-transform: uppercase; letter-spacing: .05em; }
+th small { display: block; text-transform: none; letter-spacing: 0; font-weight: 400; }
+td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.cell { display: grid; grid-template-columns: 4.6em 1fr; gap: 10px; align-items: center; }
+.bar { height: 8px; background: var(--bar-track); border-radius: 4px; position: relative; overflow: hidden; }
+.bar i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent); border-radius: 0 4px 4px 0; }
+tr.hl td { background: var(--accent-soft); }
+.method { font-weight: 600; } .method small { display: block; font-weight: 400; color: var(--ink-3); font-size: 11.5px; }
+
+.notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px 28px; }
+.notes div { display: grid; gap: 6px; font-size: 13.5px; color: var(--ink-2); }
+footer { font-size: 12.5px; color: var(--ink-3); display: grid; gap: 6px; border-top: 1px solid var(--rule); padding-top: 18px; }
+@media (prefers-reduced-motion: no-preference) { .tile-img, .chip { transition: outline-color .15s, background .15s; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <span class="cfa" aria-hidden="true"><i style="background:var(--r)"></i><i style="background:var(--g)"></i><i style="background:var(--g)"></i><i style="background:var(--b)"></i></span>
+      <span class="eyebrow">Hanson Image Engine · v0.1 research baselines</span>
+    </div>
+    <h1>Baseline Bench</h1>
+    <p class="lede">Every burst-fusion baseline in HIE v0.1, run on real RAW bursts from the Google HDR+ dataset and on synthetic bursts with exact ground truth. The crops are shown at 100% on a neutral grey surround.</p>
+    <div class="meta-line mono" id="meta-line"></div>
+  </header>
+
+  <section class="findings">
+    <div class="head"><span class="eyebrow">What the numbers say</span><h2>Key findings</h2></div>
+    <ul><!--__FINDINGS__--></ul>
+  </section>
+
+  <section id="viewer">
+    <div class="head"><span class="eyebrow">Real bursts · Google HDR+ dataset</span><h2>Compare methods crop by crop</h2>
+      <p class="note">Bursts are ordered by ISO. Drag across the image to wipe between method A (left) and B (right). Pick a tile to make it B.</p></div>
+    <div class="controls">
+      <div class="chips" id="bursts" role="group" aria-label="Burst"></div>
+      <div class="row">
+        <div class="seg" id="kinds" role="group" aria-label="Crop"></div>
+        <label class="sel" for="sel-a">A <select id="sel-a"></select></label>
+        <label class="sel" for="sel-b">B <select id="sel-b"></select></label>
+        <label class="toggle" for="pixel"><input type="checkbox" id="pixel" checked> Show pixels (nearest-neighbour zoom)</label>
+      </div>
+    </div>
+    <div class="stage">
+      <div class="surround" id="surround">
+        <div class="wipe" id="wipe">
+          <div class="layer" id="layer-b"></div>
+          <div class="layer" id="layer-a"></div>
+          <div class="divider" id="divider"></div>
+          <span class="tag a" id="tag-a"></span><span class="tag b" id="tag-b"></span>
+          <input type="range" id="wipe-range" min="0" max="100" value="50" aria-label="Wipe position between A and B">
+        </div>
+      </div>
+      <aside class="panel" id="panel"></aside>
+    </div>
+    <div class="tiles" id="tiles"></div>
+    <h3>Full frame</h3>
+    <div class="thumbs" id="thumbs"></div>
+  </section>
+
+  <section>
+    <div class="head"><span class="eyebrow">Real bursts · mean over all bursts</span><h2>No-reference measurements</h2>
+      <p class="note">Real bursts have no clean ground truth. These measure noise removed, structured deviation from the reference frame (a proxy for ghosts and blur), and agreement with Google's own merged DNG.</p></div>
+    <div class="table-wrap"><table id="real"></table></div>
+  </section>
+
+  <section>
+    <div class="head"><span class="eyebrow">Synthetic bursts · exact ground truth · test split</span><h2>Full-reference measurements</h2>
+      <p class="note">Six scenes, from daylight to night-level noise, with hand-shake and moving objects. Parameters were tuned on a separate split with different seeds and chart content.</p></div>
+    <div class="table-wrap"><table id="synth"></table></div>
+  </section>
+
+  <section>
+    <div class="head"><span class="eyebrow">Reading this page</span><h2>What the metrics can and cannot tell you</h2></div>
+    <div class="notes">
+      <div><h3>Noise reduction</h3><p>Immerkær noise σ in flat regions of the merged raw, relative to the reference frame, in dB. Warping with sub-pixel interpolation also smooths a little, so aligned merges can exceed the ideal 10·log10(N) gain.</p></div>
+      <div><h3>Reference deviation</h3><p>Share of pixels where the low-passed merge differs from the low-passed reference frame by more than 5σ of the reference's own noise. It catches ghosts, misalignment blur and lost detail. It is a proxy, not a ghost detector.</p></div>
+      <div><h3>Agreement with Google merge</h3><p>PSNR of the merged raw against Google's merged.dng after a least-squares gain fit. It measures similarity to one production system, not quality. Google's merge is not ground truth.</p></div>
+      <div><h3>Detail retention</h3><p>Share of the ground truth's fine band-pass detail present in the output. PSNR rewards smoothing, and this metric exists to catch that. HIE v0.1 trades a few points of detail for its PSNR gain.</p></div>
+    </div>
+  </section>
+
+  <footer>
+    <p>Data: Google HDR+ Burst Photography Dataset (Hasinoff et al., "Burst photography for high dynamic range and low-light imaging on mobile cameras", SIGGRAPH Asia 2016), licensed CC BY-SA. The images on this page are derived from it and carry the same licence. Crops of Google's final.jpg are shown only when it aligns with our render to within 2 px.</p>
+    <p id="prov"></p>
+  </footer>
+</div>
+
+<script>
+const DATA = /*__DATA__*/null;
+const SRC = Object.fromEntries(DATA.sources.map(s => [s.id, s]));
+const state = { burst: DATA.bursts[0]?.id, kind: "detail", a: "single", b: "hie_v0.1", pos: 50 };
+try { Object.assign(state, JSON.parse(localStorage.getItem("hie-bench") || "{}")); } catch (e) {}
+const $ = id => document.getElementById(id);
+const fmt = (v, d = 2) => (v === null || v === undefined || Number.isNaN(v)) ? "—" : Number(v).toFixed(d);
+const burst = () => DATA.bursts.find(b => b.id === state.burst) || DATA.bursts[0];
+function save() { try { localStorage.setItem("hie-bench", JSON.stringify(state)); } catch (e) {} }
+
+function spriteStyle(el, b, src) {
+  const n = b.sources.length, i = b.sources.indexOf(src);
+  el.style.backgroundImage = `url("${b.sprites[state.kind]}")`;
+  el.style.backgroundSize = `${n * 100}% 100%`;
+  el.style.backgroundPosition = `${n > 1 ? (i / (n - 1)) * 100 : 0}% 0`;
+}
+
+function renderControls() {
+  $("bursts").innerHTML = DATA.bursts.map(b =>
+    `<button class="chip" aria-pressed="${b.id === state.burst}" data-id="${b.id}"><b>ISO ${Math.round(b.iso || 0)}</b> · ${b.camera.replace(/^(google|Google|LGE|Huawei) /, "")} · ${b.frames}f</button>`).join("");
+  $("kinds").innerHTML = DATA.crops.map(k => `<button aria-pressed="${k.id === state.kind}" data-id="${k.id}">${k.label}</button>`).join("");
+  const b = burst();
+  if (!b.sources.includes(state.a)) state.a = b.sources[0];
+  if (!b.sources.includes(state.b)) state.b = b.sources.includes("hie_v0.1") ? "hie_v0.1" : b.sources.at(-1);
+  const opts = sel => b.sources.map(s => `<option value="${s}" ${s === sel ? "selected" : ""}>${SRC[s].label}</option>`).join("");
+  $("sel-a").innerHTML = opts(state.a); $("sel-b").innerHTML = opts(state.b);
+}
+
+function renderWipe() {
+  const b = burst();
+  spriteStyle($("layer-a"), b, state.a); spriteStyle($("layer-b"), b, state.b);
+  $("layer-a").style.clipPath = `inset(0 ${100 - state.pos}% 0 0)`;
+  $("divider").style.left = `calc(${state.pos}% - 1px)`;
+  $("wipe-range").value = state.pos;
+  $("tag-a").textContent = "A · " + SRC[state.a].label; $("tag-b").textContent = "B · " + SRC[state.b].label;
+}
+
+function renderPanel() {
+  const b = burst(), m = b.metrics;
+  const line = (p) => m[p] ? `<dt>${SRC[p].label}</dt><dd>−${fmt(m[p].noise_reduction_db, 1)} dB · ${fmt(m[p].ref_deviation_rate * 100, 2)}%</dd>` : "";
+  $("panel").innerHTML = `<h3 class="mono" style="font-family:var(--mono);font-size:13px;font-weight:500">${b.id}</h3>
+    <dl><dt>Camera</dt><dd>${b.camera}</dd><dt>ISO</dt><dd>${Math.round(b.iso || 0)}</dd>
+    <dt>Exposure</dt><dd>${b.exposure ? "1/" + Math.round(1 / b.exposure) + " s" : "—"}</dd>
+    <dt>Frames</dt><dd>${b.frames} · ref ${b.reference ?? "—"}</dd><dt>Noise model</dt><dd>${b.noise || "—"}</dd></dl>
+    <div class="note">Noise removed · reference deviation</div>
+    <dl>${[state.a, state.b].filter((v, i, a) => a.indexOf(v) === i).map(line).join("")}</dl>
+    ${b.notes.length ? `<div class="note">${b.notes.join("<br>")}</div>` : ""}
+    ${b.final_aligned ? "" : `<div class="note">Google's final.jpg does not align with our render for this burst, so its crops are left out.</div>`}`;
+}
+
+function renderTiles() {
+  const b = burst();
+  $("tiles").innerHTML = b.sources.map(s => {
+    const m = b.metrics[s];
+    const sub = m ? `−${fmt(m.noise_reduction_db, 1)} dB` : SRC[s].note;
+    return `<button class="tile" data-id="${s}" aria-pressed="${s === state.b}"><span class="tile-img" data-src="${s}"></span>
+      <span class="tile-label">${SRC[s].label}</span><span class="tile-sub">${sub}</span></button>`;
+  }).join("");
+  $("tiles").querySelectorAll(".tile-img").forEach(el => spriteStyle(el, b, el.dataset.src));
+  $("thumbs").innerHTML = Object.entries(b.thumbs).map(([s, url]) =>
+    `<figure><div class="thumb-box"><img src="${url}" alt="${SRC[s].label}, full frame" loading="lazy"></div><figcaption>${SRC[s].label}</figcaption></figure>`).join("");
+}
+
+function render() { renderControls(); renderWipe(); renderPanel(); renderTiles(); save(); }
+
+$("bursts").addEventListener("click", e => { const t = e.target.closest("button"); if (t) { state.burst = t.dataset.id; render(); } });
+$("kinds").addEventListener("click", e => { const t = e.target.closest("button"); if (t) { state.kind = t.dataset.id; render(); } });
+$("tiles").addEventListener("click", e => { const t = e.target.closest(".tile"); if (t) { state.b = t.dataset.id; render(); } });
+$("sel-a").addEventListener("change", e => { state.a = e.target.value; render(); });
+$("sel-b").addEventListener("change", e => { state.b = e.target.value; render(); });
+$("wipe-range").addEventListener("input", e => { state.pos = +e.target.value; renderWipe(); save(); });
+$("pixel").addEventListener("change", e => { document.body.classList.toggle("pixel", e.target.checked); });
+document.body.classList.add("pixel");
+
+function bars(rows, cols, highlight) {
+  const head = `<tr><th>Method</th>${cols.map(c => `<th>${c.label}<small>${c.hint}</small></th>`).join("")}</tr>`;
+  const body = rows.map(r => `<tr class="${r.id === highlight ? "hl" : ""}"><td class="method">${SRC[r.id]?.label || r.id}<small>${SRC[r.id]?.note || ""}</small></td>` +
+    cols.map(c => {
+      const v = r[c.key];
+      if (v === null || v === undefined || Number.isNaN(v)) return `<td class="num">—</td>`;
+      const vals = rows.map(x => x[c.key]).filter(x => x !== null && !Number.isNaN(x));
+      const lo = c.zero ? 0 : Math.min(...vals), hi = Math.max(...vals);
+      const frac = hi > lo ? (v - lo) / (hi - lo) : 1;
+      const w = Math.max(2, (c.invert ? 1 - frac : frac) * 100);
+      return `<td class="num"><div class="cell" title="${c.label}: ${c.fmt(v)}"><span>${c.fmt(v)}</span><span class="bar"><i style="width:${w}%"></i></span></div></td>`;
+    }).join("") + `</tr>`).join("");
+  return head + body;
+}
+
+const realRows = DATA.presets.map(p => ({ id: p, ...DATA.real[p] }));
+$("real").innerHTML = bars(realRows, [
+  { key: "noise_reduction_db", label: "Noise removed", hint: "dB · longer bar = more", fmt: v => fmt(v, 2), zero: true },
+  { key: "ref_deviation_rate", label: "Reference deviation", hint: "% of pixels · longer bar = fewer", fmt: v => fmt(v * 100, 3) + "%", invert: true, zero: true },
+  { key: "psnr_vs_hdrplus_merge", label: "Agreement with Google merge", hint: "PSNR dB · longer bar = closer", fmt: v => fmt(v, 2) },
+  { key: "runtime_s", label: "Runtime", hint: "s per 12 MP burst · Python · longer bar = faster", fmt: v => fmt(v, 1), invert: true, zero: true },
+], "hie_v0.1");
+
+const synthRows = Object.entries(DATA.synthetic).map(([id, v]) => ({ id, ...v }));
+$("synth").innerHTML = synthRows.length ? bars(synthRows, [
+  { key: "psnr_raw", label: "PSNR", hint: "raw, dB · longer bar = better", fmt: v => fmt(v, 2) },
+  { key: "psnr_raw_motion", label: "PSNR in motion", hint: "moving-object region, dB", fmt: v => fmt(v, 2) },
+  { key: "detail_retention", label: "Detail retained", hint: "1.0 = all · longer bar = more", fmt: v => fmt(v, 3) },
+  { key: "ssim_display", label: "SSIM", hint: "fixed display render", fmt: v => fmt(v, 4) },
+  { key: "delta_e2000", label: "ΔE2000", hint: "mean colour error · longer bar = smaller", fmt: v => fmt(v, 2), invert: true },
+], "hie_v0.1") : `<tr><td>No synthetic run found.</td></tr>`;
+
+$("meta-line").innerHTML = `<span>${DATA.bursts.length} real bursts</span><span>${DATA.presets.length} methods</span><span>commit ${DATA.commit}${DATA.dirty ? " (dirty)" : ""}</span><span>${DATA.date}</span>`;
+$("prov").textContent = `Real-burst run at commit ${DATA.commit}; synthetic run at commit ${DATA.synthetic_commit || "—"}. Every run records its parameters and environment in experiment.json.`;
+render();
+</script>

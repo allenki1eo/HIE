@@ -91,13 +91,30 @@ def choose_crops(single: np.ndarray, disagreement: np.ndarray, size: int = CROP)
     return crops
 
 
-def _alignment_to(final: np.ndarray, ours: np.ndarray) -> float | None:
-    if final is None or final.shape != ours.shape:
-        return None
-    a = cv2.resize(luminance(ours), None, fx=0.25, fy=0.25, interpolation=cv2.INTER_AREA).astype(np.float64)
-    b = cv2.resize(luminance(final), None, fx=0.25, fy=0.25, interpolation=cv2.INTER_AREA).astype(np.float64)
+def final_alignment(final: np.ndarray | None, ours: np.ndarray) -> tuple[float | None, float | None]:
+    """(shift in px, gradient correlation after the shift) between Google's final.jpg and our render.
+
+    Translation alone is not enough: a digitally zoomed final.jpg can register near zero shift
+    by chance, so the gradient-magnitude correlation after alignment must also be high.
+    """
+    if final is None or final.shape[:2] != ours.shape[:2]:
+        return None, None
+    scale = 512.0 / max(ours.shape[:2])
+
+    def prep(img):
+        y = cv2.resize(luminance(img.astype(np.float32)), None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
+        return np.hypot(cv2.Sobel(y, cv2.CV_32F, 1, 0), cv2.Sobel(y, cv2.CV_32F, 0, 1)).astype(np.float64)
+
+    a, b = prep(ours), prep(final)
     (dx, dy), _ = cv2.phaseCorrelate(a, b, cv2.createHanningWindow(a.shape[::-1], cv2.CV_64F))
-    return float(np.hypot(dx, dy) * 4.0)
+    shifted = cv2.warpAffine(b, np.float64([[1, 0, -dx], [0, 1, -dy]]), a.shape[::-1])
+    m = 8
+    corr = float(np.corrcoef(a[m:-m, m:-m].ravel(), shifted[m:-m, m:-m].ravel())[0, 1])
+    return float(np.hypot(dx, dy) / scale), corr
+
+
+FINAL_MAX_SHIFT_PX = 2.0
+FINAL_MIN_CORR = 0.8
 
 
 def run_hdrplus_suite(
@@ -156,7 +173,7 @@ def run_hdrplus_suite(
         if hp_planes is not None:
             extra["hdrplus_merge"], _ = render(hdrplus.planes(), base.reference, render_cfg)
         final = sample.load_final()
-        final_shift = _alignment_to(final, displays[presets[0]])
+        final_shift, final_corr = final_alignment(final, displays[presets[0]])
         if final is not None:
             extra["hdrplus_final"] = final
         for name, img in extra.items():
@@ -171,7 +188,7 @@ def run_hdrplus_suite(
         sources = dict(displays)
         if "hdrplus_merge" in extra:
             sources["hdrplus_merge"] = extra["hdrplus_merge"]
-        if final is not None and final_shift is not None and final_shift < 2.0:
+        if final_shift is not None and final_shift < FINAL_MAX_SHIFT_PX and final_corr > FINAL_MIN_CORR:
             sources["hdrplus_final"] = final
         for cname, (t, l) in crops.items():
             for sname, img in sources.items():
@@ -179,7 +196,7 @@ def run_hdrplus_suite(
         (burst_dir / "meta.json").write_text(json.dumps(jsonable({
             "burst": sid, "iso": frames[0].meta.iso, "exposure_time": frames[0].meta.exposure_time,
             "camera": f"{frames[0].meta.make} {frames[0].meta.model}", "frames": len(frames),
-            "reference_frame": ref_idx, "crops": crops, "crop_size": CROP, "final_jpg_shift_px": final_shift,
+            "reference_frame": ref_idx, "crops": crops, "crop_size": CROP, "final_jpg_shift_px": final_shift, "final_jpg_gradient_corr": final_corr,
             "final_crops_included": "hdrplus_final" in sources, "noise_model": base.noise.to_dict(),
             "notes": base.notes,
         }), indent=2))
