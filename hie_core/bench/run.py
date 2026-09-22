@@ -70,9 +70,14 @@ def _downscale(img: np.ndarray, max_side: int | None) -> np.ndarray:
     return cv2.resize(img, None, fx=s, fy=s, interpolation=cv2.INTER_AREA)
 
 
-def choose_crops(single: np.ndarray, disagreement: np.ndarray, size: int = CROP) -> dict[str, tuple[int, int]]:
-    """Pick consistent crop origins (top, left) on the upright image by content criteria."""
-    y = luminance(single.astype(np.float32))
+def choose_crops(clean: np.ndarray, disagreement: np.ndarray, size: int = CROP) -> dict[str, tuple[int, int]]:
+    """Pick consistent crop origins (top, left) on the upright image by content criteria.
+
+    ``clean`` should be the least noisy render: on a noisy single frame, noise itself has
+    high gradient energy and the "detail" crop lands on empty sky (seen at ISO 2056).
+    Texture is also measured after a small blur for the same reason.
+    """
+    y = cv2.GaussianBlur(luminance(clean.astype(np.float32)), (0, 0), 1.5)
     h, w = y.shape
     step = size // 2
     grad = np.hypot(cv2.Sobel(y, cv2.CV_32F, 1, 0), cv2.Sobel(y, cv2.CV_32F, 0, 1))
@@ -182,7 +187,8 @@ def run_hdrplus_suite(
         # consistent crops on the upright full-resolution renders
         a, b = displays.get("mean", displays[presets[0]]), displays.get("confidence", displays[presets[-1]])
         disagreement = np.abs(luminance(a) - luminance(b))
-        crops = choose_crops(displays.get("single", displays[presets[0]]), disagreement)
+        clean = next((displays[p] for p in ("hie_v0.1", "confidence", "mean") if p in displays), displays[presets[0]])
+        crops = choose_crops(clean, disagreement)
         crop_dir = burst_dir / "crops"
         crop_dir.mkdir()
         sources = dict(displays)
