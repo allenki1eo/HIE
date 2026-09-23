@@ -8,6 +8,10 @@ exact ground truth. It is the measured baseline that any new HIE method must bea
 > **Status:** v0.1 baselines complete. The research report is waiting at the brief's **approval gate**
 > ([docs/research-report-001.md](docs/research-report-001.md)). No method in this repository is
 > claimed to be novel. See [docs/prior-art.md](docs/prior-art.md) for what already exists.
+>
+> Hanson Camera Lab (Android, milestone 2) is a working Camera2 app: live preview, hardware JPEG
+> photo, constant-exposure RAW burst + gyro log, capability inspector. Build the APK with
+> `android/gradlew :app:assembleDebug`. Pull a package and run `hie process <folder> -p hie_v0.1`.
 
 ## v0.1 results at a glance
 
@@ -72,7 +76,7 @@ datasets/        download instructions and attribution only (data is never commi
 benchmarks/      reports (committed summaries) · results (local runs) · scripts
 tests/           unit · integration · regression
 research/        experiment notes, algorithm proposals
-android/         Hanson Camera Lab plan (Pixel 6, milestone 2, not built yet)
+android/         Hanson Camera Lab: Camera2 RAW burst + gyro log + inspector (debug APK via Gradle)
 ```
 
 ## Data and licence

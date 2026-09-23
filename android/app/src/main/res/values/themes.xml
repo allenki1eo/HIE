@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.HansonCameraLab" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="android:statusBarColor">@color/lab_black</item>
+        <item name="android:navigationBarColor">@color/lab_black</item>
+        <item name="android:windowBackground">@color/lab_black</item>
+        <item name="android:colorPrimary">@color/lab_accent</item>
+        <item name="colorPrimary">@color/lab_accent</item>
+        <item name="colorOnPrimary">@color/lab_black</item>
+        <item name="android:textColor">@color/lab_text</item>
+    </style>
+</resources>

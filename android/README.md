@@ -1,26 +1,57 @@
-# Hanson Camera Lab (Android) — milestone 2, not built yet
+# Hanson Camera Lab (Android)
 
-This folder is reserved for the Pixel 6 diagnostic app (brief §20–21). **No Android code exists
-yet.** This session had no Android SDK or device to build and test against, and shipping untested
-Camera2 code would be worse than none. The plan below is what the app must do.
+Working Camera2 app for HIE milestone 2: live preview, hardware JPEG stills, constant-exposure
+RAW bursts with `DngCreator`, gyro/accel logging, and a capability inspector. Pixel values are
+never hard-coded.
 
-## Scope of v0.1 of the app
-1. **Capability inspector.** Enumerate cameras and show every item in brief §20 from
-   `CameraCharacteristics`, never hard-coded Pixel values. Items include RAW capability, RAW sizes,
-   ISO and exposure ranges, black and white level, CFA arrangement, OIS, focal lengths, active and
-   pixel array, and FPS ranges. Export as JSON.
-2. **RAW burst capture.** Manual AE/AWB lock, with 5–15 `RAW_SENSOR` frames at a fixed exposure
-   and ISO, written with `DngCreator`. Record each `CaptureResult` (sensor timestamp, exposure,
-   sensitivity, lens state, OIS samples) in `metadata.json`.
-3. **Motion logging.** Gyroscope and accelerometer at the highest rate, stamped with
-   `SENSOR_TIMESTAMP`-compatible clocks, stored in `motion/sensors.csv`. Check
-   `SENSOR_INFO_TIMESTAMP_SOURCE` and measure camera–gyro sync error rather than assume it (brief §14).
-4. **Stock reference.** Capture a stock JPEG of the same scene right after the burst.
-5. **Package export** in the layout of [datasets/pixel6](../datasets/pixel6/README.md). Never overwrite.
+On-device output is the **phone ISP JPEG** plus a bilinear RAW preview. That is not HIE v0.1
+and not hypothesis H1. Pull the package and run `hie process` for the research engine.
 
-## Planned structure
-`app/` (Kotlin UI) · `camera/` (Camera2 session, capability inspection) · `capture/` (burst policy and
-DNG writing) · `sensors/` (gyro logging) · `native/` (NDK/C++ ports of HIE stages, later).
+## Install the debug APK
 
-The Python engine already reads these packages (`hie inspect`, `hie process`), including
-GainMap lens shading in `OpcodeList2`, so the offline half of milestone 2 is ready.
+1. Enable Developer options → USB debugging on the phone.
+2. `adb install -r app/build/outputs/apk/debug/app-debug.apk`
+3. Grant camera permission. Burst/Night need a camera that advertises `REQUEST_AVAILABLE_CAPABILITIES_RAW`.
+
+A built APK is also copied to `dist/` when the Gradle assemble task succeeds.
+
+## Build from source
+
+Needs JDK 17 and Android SDK 34 (`ANDROID_HOME` or `local.properties` `sdk.dir`).
+
+```bash
+cd android
+printf 'sdk.dir=%s\n' "$ANDROID_HOME" > local.properties
+./gradlew :app:assembleDebug :app:test
+```
+
+`minSdk 26` (Oreo). RAW_SENSOR / DngCreator are used when the device exposes them; otherwise
+the app still takes JPEGs and records `raw_available=false`.
+
+## Using the app
+
+- **Photo** — one hardware JPEG and, if RAW exists, one DNG.
+- **Burst** — 5–15 locked-exposure RAW frames (count from TET / 1.2 s budget) + stock JPEG after the burst.
+- **Night** — same, with a 3 s budget (more frames).
+- **Inspector** — every CameraCharacteristics field listed in the brief, exported as JSON.
+- **Experiments** — list packages; share the latest as a zip.
+
+Tap the viewfinder to meter/focus. The overlay shows ISO, exposure, RAW size, timestamp source and gyro presence.
+
+## Pull a package
+
+```text
+adb pull /sdcard/Android/data/com.hanson.hie.cameralab.debug/files/experiments/
+hie package validate experiment_0001
+hie process experiment_0001 -p hie_v0.1
+```
+
+Layout matches [datasets/pixel6](../datasets/pixel6/README.md). The loader never drops frames
+silently; `hie package validate` lists missing DNGs as errors.
+
+## What this is not
+
+- Not a Halide/NDK port of HIE (planned later as engineering).
+- Not US 9,313,420 incremental SNR capture, not US 9,087,391 bracketing, not Zhang & Stevenson
+  gyro alignment. Those stay documented prior art; the app only **records** gyro so the sync
+  experiment can be run on a real phone.

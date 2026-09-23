@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="lab_black">#FF0B0D10</color>
+    <color name="lab_panel">#CC141820</color>
+    <color name="lab_accent">#FFFFB020</color>
+    <color name="lab_text">#FFF4F1EA</color>
+    <color name="lab_muted">#99F4F1EA</color>
+    <color name="lab_danger">#FFFF5A4A</color>
+    <color name="shutter_fill">#FFF4F1EA</color>
+    <color name="shutter_ring">#FFFFB020</color>
+</resources>

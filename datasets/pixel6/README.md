@@ -1,6 +1,7 @@
 # Pixel 6 experiment packages
 
-Real-world captures from the project's Google Pixel 6 (milestone 2). Nothing here is committed.
+Real-world captures from Hanson Camera Lab (Pixel 6 first, any Android phone with RAW).
+Nothing here is committed. The capture app is `android/` — see [docs/camera-lab.md](../../docs/camera-lab.md).
 Each capture is one self-contained, never-overwritten package (brief §21):
 
 ```text

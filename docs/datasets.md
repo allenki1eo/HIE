@@ -4,7 +4,7 @@
 |---|---|---|---|
 | Google HDR+ Burst Photography (CC BY-SA) | real bursts from six phone models, plus Google's own merge and final output | none; Google's merge is a *reference system*, not truth | 12 bursts used; see [datasets/google-hdr-plus](../datasets/google-hdr-plus/README.md) |
 | Synthetic bursts (`hie_core.datasets.synthetic`) | exact ground truth for merge quality, ghosting and detail | exact | 6 scenes × 2 disjoint splits (`tune`, `test`) |
-| Pixel 6 packages | the target device, real capture metadata and gyro | none; compared with the stock camera | layout defined; the capture app is not built yet |
+| Pixel 6 / Camera Lab packages | any Android phone the app runs on (Pixel 6 is the first target); real CaptureResult + gyro | none; compared with the stock JPEG | layout defined; Hanson Camera Lab writes these packages. Validate with `hie package validate` |
 | BurstSR (Bhat et al. 2021) | phone bursts with DSLR ground truth, for super-resolution | yes (DSLR) | candidate for v0.5; not downloaded |
 
 ## Synthetic burst protocol

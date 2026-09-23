@@ -6,6 +6,8 @@ __pycache__/
 .venv/
 build/
 dist/
+!android/dist/
+!android/dist/**
 
 # Datasets are never committed (see datasets/*/README.md)
 datasets/google-hdr-plus/*
@@ -28,3 +30,10 @@ research/experiments/**/output*
 .idea/
 .vscode/
 .DS_Store
+
+# Android
+android/.gradle/
+android/local.properties
+android/**/build/
+android/.cxx/
+

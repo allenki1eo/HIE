@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Hanson Camera Lab</string>
+    <string name="mode_photo">Photo</string>
+    <string name="mode_burst">Burst</string>
+    <string name="mode_night">Night</string>
+    <string name="shutter">Shutter</string>
+    <string name="switch_camera">Switch camera</string>
+    <string name="inspector">Inspector</string>
+    <string name="experiments">Experiments</string>
+    <string name="back">Back</string>
+    <string name="export_json">Export JSON</string>
+    <string name="share_package">Share package</string>
+    <string name="permission_required">Camera permission is required to capture bursts.</string>
+    <string name="no_raw">This camera has no RAW_SENSOR output. Photo still works; Burst writes JPEG-only and records that in experiment.json.</string>
+    <string name="capturing">Capturing…</string>
+</resources>
