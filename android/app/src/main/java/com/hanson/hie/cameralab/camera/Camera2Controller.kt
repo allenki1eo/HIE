@@ -33,6 +33,7 @@ data class SessionInfo(
     val jpegSize: Size?,
     val previewSize: Size,
     val timestampSource: String,
+    val sensorOrientation: Int,
 )
 
 data class FrameMeta(
@@ -188,7 +189,8 @@ class Camera2Controller(
         val rawSize = CapabilityInspector.largest(map, ImageFormat.RAW_SENSOR)
         val jpegSize = CapabilityInspector.largest(map, ImageFormat.JPEG)
             ?: Size(1920, 1080)
-        val previewSize = choosePreview(map, viewW, viewH)
+        val sensorOrientation = ch.get(CameraCharacteristics.SENSOR_ORIENTATION) ?: 0
+        val previewSize = choosePreview(map)
         val ts = ch.get(CameraCharacteristics.SENSOR_INFO_TIMESTAMP_SOURCE)
         val tsName = when (ts) {
             CameraCharacteristics.SENSOR_INFO_TIMESTAMP_SOURCE_REALTIME -> "realtime"
@@ -201,7 +203,9 @@ class Camera2Controller(
         jpegReader = ImageReader.newInstance(jpegSize.width, jpegSize.height, ImageFormat.JPEG, 3)
         jpegReader?.setOnImageAvailableListener({ reader -> drainJpeg(reader) }, handler)
 
-        info = SessionInfo(cameraId, ch, rawOk && rawSize != null, rawSize, jpegSize, previewSize, tsName)
+        info = SessionInfo(
+            cameraId, ch, rawOk && rawSize != null, rawSize, jpegSize, previewSize, tsName, sensorOrientation,
+        )
         mgr.openCamera(cameraId, object : CameraDevice.StateCallback() {
             override fun onOpened(c: CameraDevice) {
                 camera = c
@@ -504,10 +508,10 @@ class Camera2Controller(
         )
     }
 
-    private fun choosePreview(map: android.hardware.camera2.params.StreamConfigurationMap, vw: Int, vh: Int): Size {
-        val target = if (vw > 0 && vh > 0) vw.toLong() * vh else 1280L * 720
+    private fun choosePreview(map: android.hardware.camera2.params.StreamConfigurationMap): Size {
         val sizes = map.getOutputSizes(Surface::class.java) ?: map.getOutputSizes(ImageFormat.PRIVATE) ?: emptyArray()
-        return sizes.minByOrNull { abs(it.width.toLong() * it.height - target) } ?: Size(1280, 720)
+        val picked = PreviewAspect.choosePreview(sizes.map { it.width to it.height })
+        return Size(picked.first, picked.second)
     }
 
     private fun closeLocked() {

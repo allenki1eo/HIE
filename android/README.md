@@ -39,15 +39,11 @@ the app still takes JPEGs and records `raw_available=false` (no on-device HIE wi
 
 ## Using the app
 
-- **Photo** — one hardware JPEG and, if RAW exists, one DNG + HIE JPEG of that frame.
-- **Burst** — 5–15 locked-exposure RAW frames (count from TET / 1.2 s budget) + stock JPEG + HIE merge JPEG.
-- **Night** — same, with a 3 s budget (more frames; on-device merge caps at 8).
-- **Inspector** — every CameraCharacteristics field listed in the brief, exported as JSON.
-- **Experiments** — list packages; the latest HIE JPEG is shown; share the package as a zip.
-
-Tap the viewfinder to meter/focus. After a burst the overlay says `HIE merge…` then shows
-the finished JPEG. A copy is also written to the system gallery (`Pictures/HansonCameraLab`)
-when MediaStore permits it.
+- **Photo** — HIE burst (the default). Looks like a normal camera; research capture still happens in the background.
+- **Night** — same, with a longer time budget.
+- Tap the viewfinder to focus. The preview is letterboxed to the sensor aspect so it is not stretched.
+- After capture, the photo is shown at its real pixel size (Hanson / Phone toggle if both exist) and saved to **Gallery → DCIM/Hanson**.
+- Long-press the title for the lab page (packages + capability dump).
 
 On-device budgets (written into `hie/process.json`): mosaics larger than 16 MP are 2×
 plane-downsampled; more than 8 frames are dropped after the reference. Colour uses

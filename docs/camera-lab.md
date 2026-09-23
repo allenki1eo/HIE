@@ -25,8 +25,10 @@ Each shutter press writes a never-overwritten package under the app’s files di
 | `hie/process.json` | timings, `mean_n_eff`, notes (downsample, estimated noise) |
 | `experiment.json` | device, app version, git commit, capture policy, timestamp-source note |
 
-A copy of `hie/output.jpg` is also inserted into the device gallery
-(`Pictures/HansonCameraLab`) when MediaStore allows it.
+A copy of `hie/output.jpg` is inserted into the device gallery as
+`DCIM/Hanson/Hanson_yyyyMMdd_HHmmss.jpg` (falls back to `Pictures/Hanson`).
+The in-app review shows the photo at its real aspect ratio (not stretched)
+and can toggle Hanson vs the phone ISP still.
 
 Camera characteristics are **enumerated**, never hard-coded to Pixel 6.
 

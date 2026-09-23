@@ -1,13 +1,9 @@
 package com.hanson.hie.cameralab.process
 
-import android.content.ContentValues
 import android.content.Context
 import android.graphics.Bitmap
 import android.hardware.camera2.CameraCharacteristics
-import android.hardware.camera2.CaptureResult
 import android.media.Image
-import android.os.Build
-import android.provider.MediaStore
 import com.hanson.hie.cameralab.camera.FrameMeta
 import com.hanson.hie.cameralab.camera.SessionInfo
 import com.hanson.hie.cameralab.capture.ExperimentStore
@@ -99,7 +95,7 @@ class HieProcessor(private val context: Context, private val store: ExperimentSt
             .put("wb", org.json.JSONArray().put(wb[0]).put(wb[1]).put(wb[2]).put(wb[3]))
         val jsonFile = File(File(dir, "hie"), "process.json")
         store.writeJson(jsonFile, extra)
-        val uri = saveToGallery(dir.name, jpeg)
+        val uri = GalleryStore.saveJpeg(context, jpeg)
         return Result(jpeg, jsonFile, w, h, extra.toString(), uri)
     }
 
@@ -250,32 +246,6 @@ class HieProcessor(private val context: Context, private val store: ExperimentSt
 
         fun rgbToBitmap(rgb: ByteArray, w: Int, h: Int): Bitmap {
             return Bitmap.createBitmap(packRgbToArgb(rgb, w, h), w, h, Bitmap.Config.ARGB_8888)
-        }
-    }
-
-    private fun saveToGallery(packageName: String, jpeg: File): String? {
-        return try {
-            val values = ContentValues().apply {
-                put(MediaStore.Images.Media.DISPLAY_NAME, "hie_$packageName.jpg")
-                put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
-                if (Build.VERSION.SDK_INT >= 29) {
-                    put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/HansonCameraLab")
-                    put(MediaStore.Images.Media.IS_PENDING, 1)
-                }
-            }
-            val uri = context.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
-                ?: return null
-            context.contentResolver.openOutputStream(uri)?.use { out ->
-                jpeg.inputStream().use { it.copyTo(out) }
-            } ?: return null
-            if (Build.VERSION.SDK_INT >= 29) {
-                values.clear()
-                values.put(MediaStore.Images.Media.IS_PENDING, 0)
-                context.contentResolver.update(uri, values, null, null)
-            }
-            uri.toString()
-        } catch (_: Exception) {
-            null
         }
     }
 }

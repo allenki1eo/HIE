@@ -1,20 +1,29 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Hanson Camera Lab</string>
+    <string name="app_name">Hanson Camera</string>
     <string name="mode_photo">Photo</string>
-    <string name="mode_burst">Burst</string>
     <string name="mode_night">Night</string>
-    <string name="shutter">Shutter</string>
+    <string name="shutter">Take photo</string>
     <string name="switch_camera">Switch camera</string>
+    <string name="last_photo">Last photo</string>
+    <string name="done">Done</string>
+    <string name="share">Share</string>
+    <string name="compare_hie">Hanson</string>
+    <string name="compare_phone">Phone</string>
+    <string name="permission_required">Camera permission is needed to take photos.</string>
+    <string name="storage_permission">Allow storage so photos can appear in your gallery.</string>
+    <string name="no_raw">This camera cannot save RAW. Photos still go to the gallery.</string>
+    <string name="capturing">Taking photo…</string>
+    <string name="hie_merge">Finishing photo…</string>
+    <string name="saved_gallery">Saved to gallery</string>
+    <string name="saved_gallery_failed">Photo saved in the app. Gallery export failed.</string>
+    <string name="size_caption">%1$d × %2$d</string>
     <string name="inspector">Inspector</string>
-    <string name="experiments">Experiments</string>
-    <string name="back">Back</string>
+    <string name="experiments">Lab files</string>
     <string name="export_json">Export JSON</string>
     <string name="share_package">Share package</string>
-    <string name="permission_required">Camera permission is required to capture bursts.</string>
-    <string name="no_raw">This camera has no RAW_SENSOR output. Photo still works; Burst writes JPEG-only and records that in experiment.json.</string>
-    <string name="capturing">Capturing…</string>
-    <string name="hie_merge">HIE merge…</string>
-    <string name="hie_jpeg">HIE JPEG</string>
-    <string name="share_hie">Share HIE JPEG</string>
+    <string name="hie_jpeg">Photo</string>
+    <string name="share_hie">Share</string>
+    <string name="mode_burst">Burst</string>
+    <string name="back">Back</string>
 </resources>

@@ -8,55 +8,22 @@
     <SurfaceView
         android:id="@+id/preview"
         android:layout_width="match_parent"
-        android:layout_height="match_parent" />
-
-    <LinearLayout
-        android:id="@+id/topBar"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:padding="12dp"
-        android:background="@color/lab_panel">
-
-        <TextView
-            android:id="@+id/title"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="@string/app_name"
-            android:textColor="@color/lab_accent"
-            android:textStyle="bold"
-            android:textSize="16sp" />
-
-        <TextView
-            android:id="@+id/btnInspector"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:padding="8dp"
-            android:text="@string/inspector"
-            android:textColor="@color/lab_text" />
-
-        <TextView
-            android:id="@+id/btnExperiments"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:padding="8dp"
-            android:text="@string/experiments"
-            android:textColor="@color/lab_text" />
-    </LinearLayout>
+        android:layout_height="match_parent"
+        android:layout_gravity="center" />
 
     <TextView
-        android:id="@+id/meter"
-        android:layout_width="match_parent"
+        android:id="@+id/title"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="top"
-        android:layout_marginTop="52dp"
-        android:padding="10dp"
+        android:layout_gravity="top|start"
+        android:padding="16dp"
+        android:text="@string/app_name"
         android:textColor="@color/lab_text"
-        android:textSize="12sp"
-        android:fontFamily="monospace" />
+        android:textStyle="bold"
+        android:textSize="16sp" />
 
     <LinearLayout
+        android:id="@+id/bottomBar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom"
@@ -77,14 +44,6 @@
                 android:layout_height="wrap_content"
                 android:padding="10dp"
                 android:text="@string/mode_photo"
-                android:textColor="@color/lab_muted" />
-
-            <TextView
-                android:id="@+id/modeBurst"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:padding="10dp"
-                android:text="@string/mode_burst"
                 android:textStyle="bold"
                 android:textColor="@color/lab_accent" />
 
@@ -109,7 +68,7 @@
                 android:layout_height="56dp"
                 android:scaleType="centerCrop"
                 android:background="#22FFFFFF"
-                android:contentDescription="@string/experiments" />
+                android:contentDescription="@string/last_photo" />
 
             <Space
                 android:layout_width="0dp"
@@ -138,14 +97,6 @@
                 android:textColor="@color/lab_text"
                 android:contentDescription="@string/switch_camera" />
         </LinearLayout>
-
-        <TextView
-            android:id="@+id/status"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:paddingTop="8dp"
-            android:textColor="@color/lab_muted"
-            android:textSize="12sp" />
     </LinearLayout>
 
     <TextView
@@ -179,7 +130,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:padding="8dp"
-                android:text="@string/back"
+                android:text="@string/done"
                 android:textColor="@color/lab_accent" />
 
             <TextView
@@ -187,6 +138,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
+                android:gravity="center"
                 android:padding="8dp"
                 android:textColor="@color/lab_text"
                 android:textStyle="bold" />
@@ -199,32 +151,65 @@
                 android:textColor="@color/lab_accent" />
         </LinearLayout>
 
-        <ScrollView
+        <LinearLayout
+            android:id="@+id/compareRow"
             android:layout_width="match_parent"
-            android:layout_height="match_parent">
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:orientation="horizontal"
+            android:visibility="gone">
 
-            <LinearLayout
+            <TextView
+                android:id="@+id/compareHie"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:padding="10dp"
+                android:text="@string/compare_hie"
+                android:textColor="@color/lab_accent" />
+
+            <TextView
+                android:id="@+id/comparePhone"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:padding="10dp"
+                android:text="@string/compare_phone"
+                android:textColor="@color/lab_muted" />
+        </LinearLayout>
+
+        <ImageView
+            android:id="@+id/sheetImage"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:adjustViewBounds="true"
+            android:scaleType="fitCenter"
+            android:background="@color/lab_black"
+            android:contentDescription="@string/last_photo" />
+
+        <TextView
+            android:id="@+id/sheetCaption"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="12dp"
+            android:gravity="center"
+            android:textColor="@color/lab_muted"
+            android:textSize="13sp" />
+
+        <ScrollView
+            android:id="@+id/sheetLabScroll"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/sheetBody"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical">
-
-                <ImageView
-                    android:id="@+id/sheetImage"
-                    android:layout_width="match_parent"
-                    android:layout_height="280dp"
-                    android:scaleType="centerCrop"
-                    android:visibility="gone"
-                    android:contentDescription="@string/hie_jpeg" />
-
-                <TextView
-                    android:id="@+id/sheetBody"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:padding="16dp"
-                    android:textColor="@color/lab_text"
-                    android:textSize="13sp"
-                    android:fontFamily="monospace" />
-            </LinearLayout>
+                android:padding="16dp"
+                android:textColor="@color/lab_text"
+                android:textSize="13sp"
+                android:fontFamily="monospace" />
         </ScrollView>
     </LinearLayout>
 </FrameLayout>
