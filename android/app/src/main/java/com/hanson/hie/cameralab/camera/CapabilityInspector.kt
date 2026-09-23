@@ -134,11 +134,18 @@ object CapabilityInspector {
         else -> v?.toString()
     }
 
+    @Suppress("UNCHECKED_CAST")
     private fun noiseProfile(ch: CameraCharacteristics): JSONArray? {
-        val p = ch.get(CameraCharacteristics.SENSOR_NOISE_PROFILE) ?: return null
-        val arr = JSONArray()
-        for (pair in p) arr.put(JSONArray().put(pair.first).put(pair.second))
-        return arr
+        return try {
+            val field = CameraCharacteristics::class.java.getField("SENSOR_NOISE_PROFILE")
+            val key = field.get(null) as CameraCharacteristics.Key<Array<android.util.Pair<Double, Double>>>
+            val p = ch.get(key) ?: return null
+            JSONArray().also { arr ->
+                for (pair in p) arr.put(JSONArray().put(pair.first).put(pair.second))
+            }
+        } catch (_: Exception) {
+            null
+        }
     }
 
     private fun sizeJson(s: Size?) = s?.let { JSONObject().put("w", it.width).put("h", it.height) }

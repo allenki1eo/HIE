@@ -128,8 +128,8 @@ class PackageWriter(
                 for (s in ois) {
                     arr.put(JSONObject()
                         .put("timestamp_ns", s.timestamp)
-                        .put("x_shift", s.xShift)
-                        .put("y_shift", s.yShift))
+                        .put("x_shift", s.xshift)
+                        .put("y_shift", s.yshift))
                 }
                 o.put("ois_samples", arr)
             }

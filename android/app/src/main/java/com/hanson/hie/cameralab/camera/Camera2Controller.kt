@@ -275,7 +275,7 @@ class Camera2Controller(
     private fun runCapture(
         sess: CameraCaptureSession,
         cam: CameraDevice,
-        i: SessionInfo,
+        @Suppress("UNUSED_PARAMETER") _info: SessionInfo,
         plan: BurstPlan,
     ) {
         val preview = previewSurface
@@ -398,7 +398,11 @@ class Camera2Controller(
         val keys = pendingRaw.keys.intersect(pendingRawResult.keys)
         for (ts in keys) {
             val img = pendingRaw.remove(ts) ?: continue
-            val meta = pendingRawResult.remove(ts) ?: run { img.close(); continue }
+            val meta = pendingRawResult.remove(ts)
+            if (meta == null) {
+                img.close()
+                continue
+            }
             val idx = rawDone.getAndIncrement()
             try {
                 sink?.onRaw(idx, img, meta)

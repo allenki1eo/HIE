@@ -7,7 +7,7 @@ app/build/
 captures/
 .cxx/
 *.apk
-!dist/*.apk
+!/dist/*.apk
 *.aab
 *.ap_
 .DS_Store
