@@ -33,6 +33,7 @@ data class SessionInfo(
     val jpegSize: Size?,
     val previewSize: Size,
     val timestampSource: String,
+    val sensorOrientation: Int,
 )
 
 data class FrameMeta(
@@ -43,6 +44,7 @@ data class FrameMeta(
     val focusDistance: Float?,
     val lensState: Int?,
     val colorGains: FloatArray?,
+    val colorTransform: FloatArray?,
     val result: TotalCaptureResult,
 )
 
@@ -77,8 +79,12 @@ class Camera2Controller(
     private var repeating: CaptureRequest.Builder? = null
 
     @Volatile private var capturing = false
+    private var closing = false
+    private var openedId: String? = null
     private var sink: CaptureSink? = null
     private var expectedRaw = 0
+    private var rawInFlight = false
+    private var activePlan: BurstPlan? = null
     private val rawDone = AtomicInteger(0)
     private val pendingRaw = ConcurrentHashMap<Long, Image>()
     private val pendingRawResult = ConcurrentHashMap<Long, FrameMeta>()
@@ -91,18 +97,25 @@ class Camera2Controller(
     val sessionInfo: SessionInfo? get() = info
     val isCapturing: Boolean get() = capturing
 
-    fun start(cameraId: String, preview: Surface, viewW: Int, viewH: Int) {
+    fun start(cameraId: String, preview: Surface, bufferW: Int = 0, bufferH: Int = 0) {
         handler.post {
+            closing = false
+            if (camera != null && session != null && openedId == cameraId && previewSurface === preview) {
+                return@post
+            }
             try {
-                openLocked(cameraId, preview, viewW, viewH)
+                openLocked(cameraId, preview, bufferW, bufferH)
             } catch (e: Exception) {
-                listener.onError(e.message ?: e.toString())
+                listener.onError(e.message ?: "Could not open the camera")
             }
         }
     }
 
     fun stop() {
-        handler.post { closeLocked() }
+        handler.post {
+            closing = true
+            closeLocked()
+        }
     }
 
     fun release() {
@@ -177,7 +190,7 @@ class Camera2Controller(
     }
 
     @SuppressLint("MissingPermission")
-    private fun openLocked(cameraId: String, preview: Surface, viewW: Int, viewH: Int) {
+    private fun openLocked(cameraId: String, preview: Surface, bufferW: Int = 0, bufferH: Int = 0) {
         closeLocked()
         previewSurface = preview
         val ch = mgr.getCameraCharacteristics(cameraId)
@@ -187,32 +200,43 @@ class Camera2Controller(
         val rawSize = CapabilityInspector.largest(map, ImageFormat.RAW_SENSOR)
         val jpegSize = CapabilityInspector.largest(map, ImageFormat.JPEG)
             ?: Size(1920, 1080)
-        val previewSize = choosePreview(map, viewW, viewH)
+        val sensorOrientation = ch.get(CameraCharacteristics.SENSOR_ORIENTATION) ?: 0
+        val previewSize = if (bufferW > 0 && bufferH > 0) Size(bufferW, bufferH) else choosePreview(map)
         val ts = ch.get(CameraCharacteristics.SENSOR_INFO_TIMESTAMP_SOURCE)
         val tsName = when (ts) {
             CameraCharacteristics.SENSOR_INFO_TIMESTAMP_SOURCE_REALTIME -> "realtime"
             else -> "unknown"
         }
         if (rawOk && rawSize != null) {
-            rawReader = ImageReader.newInstance(rawSize.width, rawSize.height, ImageFormat.RAW_SENSOR, 16)
+            rawReader = ImageReader.newInstance(rawSize.width, rawSize.height, ImageFormat.RAW_SENSOR, 2)
             rawReader?.setOnImageAvailableListener({ reader -> drainRaw(reader) }, handler)
         }
         jpegReader = ImageReader.newInstance(jpegSize.width, jpegSize.height, ImageFormat.JPEG, 3)
         jpegReader?.setOnImageAvailableListener({ reader -> drainJpeg(reader) }, handler)
 
-        info = SessionInfo(cameraId, ch, rawOk && rawSize != null, rawSize, jpegSize, previewSize, tsName)
+        info = SessionInfo(
+            cameraId, ch, rawOk && rawSize != null, rawSize, jpegSize, previewSize, tsName, sensorOrientation,
+        )
+        openedId = cameraId
         mgr.openCamera(cameraId, object : CameraDevice.StateCallback() {
             override fun onOpened(c: CameraDevice) {
+                if (closing) {
+                    c.close()
+                    return
+                }
                 camera = c
                 createSession(c)
             }
             override fun onDisconnected(c: CameraDevice) {
-                listener.onError("camera disconnected")
+                val failedCapture = capturing
                 closeLocked()
+                if (!closing) {
+                    listener.onError(if (failedCapture) "capture interrupted" else "camera disconnected")
+                }
             }
             override fun onError(c: CameraDevice, error: Int) {
-                listener.onError("camera error $error")
                 closeLocked()
+                if (!closing) listener.onError("camera error $error")
             }
         }, handler)
     }
@@ -272,12 +296,29 @@ class Camera2Controller(
         }
     }
 
+    private val captureWatchdog = Runnable {
+        if (!capturing) return@Runnable
+        notes.add("capture timed out after ${rawDone.get()}/$expectedRaw RAW frames; saving what arrived")
+        rawInFlight = false
+        val sess = session
+        val cam = camera
+        val plan = activePlan
+        if (sess != null && cam != null && plan != null && !jpegDone) {
+            expectedRaw = rawDone.get()
+            captureStockJpeg(sess, cam, plan)
+        } else {
+            finishCapture(null)
+        }
+    }
+
     private fun runCapture(
         sess: CameraCaptureSession,
         cam: CameraDevice,
         @Suppress("UNUSED_PARAMETER") _info: SessionInfo,
         plan: BurstPlan,
     ) {
+        activePlan = plan
+        rawInFlight = false
         val preview = previewSurface
         if (plan.lockAe || plan.lockAwb) {
             val lock = cam.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
@@ -285,20 +326,46 @@ class Camera2Controller(
             lock.set(CaptureRequest.CONTROL_AE_LOCK, plan.lockAe)
             lock.set(CaptureRequest.CONTROL_AWB_LOCK, plan.lockAwb)
             lock.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE)
-            sess.setRepeatingRequest(lock.build(), previewCallback, handler)
-            repeating = lock
-        }
-
-        val requests = ArrayList<CaptureRequest>()
-        if (expectedRaw > 0) {
-            repeat(expectedRaw) {
-                val b = cam.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE)
-                rawReader?.surface?.let { b.addTarget(it) }
-                preview?.let { b.addTarget(it) }
-                applyStill(b, plan)
-                requests.add(b.build())
+            try {
+                sess.setRepeatingRequest(lock.build(), previewCallback, handler)
+                repeating = lock
+            } catch (e: CameraAccessException) {
+                notes.add("AE lock skipped: ${e.message}")
             }
-            sess.captureBurst(requests, object : CameraCaptureSession.CaptureCallback() {
+        }
+        handler.removeCallbacks(captureWatchdog)
+        handler.postDelayed(captureWatchdog, 20_000)
+        if (expectedRaw > 0 && rawReader != null) submitNextRaw() else captureStockJpeg(sess, cam, plan)
+    }
+
+    /** One RAW frame at a time so the camera is not flooded and disconnected. */
+    private fun submitNextRaw() {
+        if (!capturing || rawInFlight) return
+        val sess = session
+        val cam = camera
+        val plan = activePlan
+        if (sess == null || cam == null || plan == null) {
+            finishCapture("Camera disconnected. Try again.")
+            return
+        }
+        if (rawDone.get() >= expectedRaw) {
+            captureStockJpeg(sess, cam, plan)
+            return
+        }
+        val rawSurface = rawReader?.surface
+        if (rawSurface == null) {
+            notes.add("RAW surface missing; JPEG only")
+            expectedRaw = rawDone.get()
+            captureStockJpeg(sess, cam, plan)
+            return
+        }
+        val b = cam.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE)
+        b.addTarget(rawSurface)
+        previewSurface?.let { b.addTarget(it) }
+        applyStill(b, plan)
+        rawInFlight = true
+        try {
+            sess.capture(b.build(), object : CameraCaptureSession.CaptureCallback() {
                 override fun onCaptureCompleted(
                     session: CameraCaptureSession,
                     request: CaptureRequest,
@@ -314,29 +381,31 @@ class Camera2Controller(
                     request: CaptureRequest,
                     failure: android.hardware.camera2.CaptureFailure,
                 ) {
-                    notes.add("RAW capture failed reason=${failure.reason}")
-                    if (rawDone.incrementAndGet() >= expectedRaw) captureStockJpeg(sess, cam, plan)
+                    notes.add("RAW frame failed reason=${failure.reason}")
+                    rawInFlight = false
+                    rawDone.incrementAndGet()
+                    if (rawDone.get() >= expectedRaw) captureStockJpeg(sess, cam, plan) else submitNextRaw()
                 }
             }, handler)
-        } else {
+        } catch (e: Exception) {
+            notes.add("RAW submit: ${e.message}")
+            rawInFlight = false
+            expectedRaw = rawDone.get()
             captureStockJpeg(sess, cam, plan)
-        }
-        if (expectedRaw == 0) {
-            // JPEG-only path already kicked off
-        } else {
-            // stock JPEG after the burst, as specified
-            handler.postDelayed({
-                if (capturing && rawDone.get() >= expectedRaw && !jpegDone) {
-                    captureStockJpeg(sess, cam, plan)
-                }
-            }, 8_000)
         }
     }
 
     private fun captureStockJpeg(sess: CameraCaptureSession, cam: CameraDevice, plan: BurstPlan) {
-        if (jpegDone) return
+        if (jpegDone || !capturing) return
+        val jpegSurface = jpegReader?.surface
+        if (jpegSurface == null) {
+            notes.add("no JPEG surface")
+            jpegDone = true
+            maybeFinish()
+            return
+        }
         val b = cam.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE)
-        jpegReader?.surface?.let { b.addTarget(it) }
+        b.addTarget(jpegSurface)
         previewSurface?.let { b.addTarget(it) }
         applyStill(b, plan.copy(lockAe = false, lockAwb = false))
         try {
@@ -371,11 +440,6 @@ class Camera2Controller(
         b.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE)
         if (plan.lockAe) b.set(CaptureRequest.CONTROL_AE_LOCK, true)
         if (plan.lockAwb) b.set(CaptureRequest.CONTROL_AWB_LOCK, true)
-        info?.let {
-            if (it.rawAvailable) {
-                b.set(CaptureRequest.STATISTICS_LENS_SHADING_MAP_MODE, CaptureRequest.STATISTICS_LENS_SHADING_MAP_MODE_ON)
-            }
-        }
     }
 
     private fun drainRaw(reader: ImageReader) {
@@ -410,11 +474,14 @@ class Camera2Controller(
                 img.close()
             }
             sink?.onProgress(rawDone.get(), expectedRaw + 1)
+            rawInFlight = false
+            val sess = session
+            val cam = camera
+            val plan = activePlan
             if (rawDone.get() >= expectedRaw) {
-                val sess = session
-                val cam = camera
-                val plan = BurstPlan(CaptureMode.BURST, expectedRaw, lockAe = true, lockAwb = true, reason = "")
-                if (sess != null && cam != null) captureStockJpeg(sess, cam, plan)
+                if (sess != null && cam != null && plan != null) captureStockJpeg(sess, cam, plan)
+            } else {
+                submitNextRaw()
             }
         }
         maybeFinish()
@@ -462,6 +529,8 @@ class Camera2Controller(
     private fun finishCapture(error: String?) {
         if (!capturing && error == null) return
         capturing = false
+        rawInFlight = false
+        handler.removeCallbacks(captureWatchdog)
         pendingRaw.values.forEach { it.close() }
         pendingJpeg.values.forEach { it.close() }
         pendingRaw.clear()
@@ -482,6 +551,14 @@ class Camera2Controller(
 
     private fun frameMeta(result: TotalCaptureResult): FrameMeta {
         val gains = result.get(CaptureResult.COLOR_CORRECTION_GAINS)
+        val xform = result.get(CaptureResult.COLOR_CORRECTION_TRANSFORM)
+        val matrix = if (xform != null) {
+            FloatArray(9) { i ->
+                val r = i / 3
+                val c = i % 3
+                xform.getElement(c, r).toFloat()
+            }
+        } else null
         return FrameMeta(
             sensorTimestampNs = result.get(CaptureResult.SENSOR_TIMESTAMP) ?: 0L,
             exposureNs = result.get(CaptureResult.SENSOR_EXPOSURE_TIME),
@@ -490,18 +567,30 @@ class Camera2Controller(
             focusDistance = result.get(CaptureResult.LENS_FOCUS_DISTANCE),
             lensState = result.get(CaptureResult.LENS_STATE),
             colorGains = gains?.let { floatArrayOf(it.red, it.greenEven, it.greenOdd, it.blue) },
+            colorTransform = matrix,
             result = result,
         )
     }
 
-    private fun choosePreview(map: android.hardware.camera2.params.StreamConfigurationMap, vw: Int, vh: Int): Size {
-        val target = if (vw > 0 && vh > 0) vw.toLong() * vh else 1280L * 720
+    private fun choosePreview(map: android.hardware.camera2.params.StreamConfigurationMap): Size {
         val sizes = map.getOutputSizes(Surface::class.java) ?: map.getOutputSizes(ImageFormat.PRIVATE) ?: emptyArray()
-        return sizes.minByOrNull { abs(it.width.toLong() * it.height - target) } ?: Size(1280, 720)
+        val picked = PreviewAspect.choosePreview(sizes.map { it.width to it.height })
+        return Size(picked.first, picked.second)
     }
 
     private fun closeLocked() {
-        capturing = false
+        handler.removeCallbacks(captureWatchdog)
+        if (capturing) {
+            capturing = false
+            rawInFlight = false
+            pendingRaw.values.forEach { it.close() }
+            pendingJpeg.values.forEach { it.close() }
+            pendingRaw.clear()
+            pendingJpeg.clear()
+            val s = sink
+            sink = null
+            s?.onFailed("Camera disconnected. Try again.")
+        }
         try { session?.close() } catch (_: Exception) {}
         session = null
         try { camera?.close() } catch (_: Exception) {}

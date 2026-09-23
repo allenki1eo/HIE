@@ -56,7 +56,16 @@ def test_validate_complete_package(tmp_path):
     assert info["dng_count"] == 2
     assert info["motion_samples"] == 2
     assert info["has_stock_jpeg"]
+    assert not info["has_hie_jpeg"]
     assert info["problems"] == []
+
+
+def test_validate_records_on_device_hie_jpeg(tmp_path):
+    root = _package(tmp_path)
+    (root / "hie").mkdir()
+    (root / "hie" / "output.jpg").write_bytes(b"hie-jpeg")
+    info = validate_package(root, require_dngs=False)
+    assert info["has_hie_jpeg"]
 
 
 def test_declared_frame_missing_is_an_error(tmp_path):

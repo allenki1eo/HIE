@@ -1,11 +1,12 @@
 # Hanson Camera Lab (Android)
 
-Working Camera2 app for HIE milestone 2: live preview, hardware JPEG stills, constant-exposure
-RAW bursts with `DngCreator`, gyro/accel logging, and a capability inspector. Pixel values are
-never hard-coded.
+Working Camera2 app: live preview, hardware JPEG stills, constant-exposure RAW
+bursts with `DngCreator`, gyro/accel logging, capability inspector, and an
+**on-device HIE v0.1 JPEG** (`hie/output.jpg`) after each RAW capture.
 
-On-device output is the **phone ISP JPEG** plus a bilinear RAW preview. That is not HIE v0.1
-and not hypothesis H1. Pull the package and run `hie process` for the research engine.
+That JPEG is a C++/NDK port of the Python `hie_v0.1` stages (tile align,
+confidence merge, N_eff Wiener, MHC, Camera2 colour, local tone, finish). It is
+not hypothesis H1.
 
 ## Install the debug APK
 
@@ -17,7 +18,7 @@ A built APK is also copied to `dist/` when the Gradle assemble task succeeds.
 
 ## Build from source
 
-Needs JDK 17 and Android SDK 34 (`ANDROID_HOME` or `local.properties` `sdk.dir`).
+Needs JDK 17, Android SDK 34, NDK 26.2, CMake 3.22.1 (`ANDROID_HOME` or `local.properties` `sdk.dir`).
 
 ```bash
 cd android
@@ -25,18 +26,29 @@ printf 'sdk.dir=%s\n' "$ANDROID_HOME" > local.properties
 ./gradlew :app:assembleDebug :app:test
 ```
 
+Host-only check of the C++ stages (no Android, no NDK):
+
+```bash
+g++ -std=c++17 -O2 -o /tmp/hie_host_test \
+  app/src/main/cpp/hie_host_test.cpp app/src/main/cpp/hie_pipeline.cpp
+/tmp/hie_host_test
+```
+
 `minSdk 26` (Oreo). RAW_SENSOR / DngCreator are used when the device exposes them; otherwise
-the app still takes JPEGs and records `raw_available=false`.
+the app still takes JPEGs and records `raw_available=false` (no on-device HIE without RAW).
 
 ## Using the app
 
-- **Photo** — one hardware JPEG and, if RAW exists, one DNG.
-- **Burst** — 5–15 locked-exposure RAW frames (count from TET / 1.2 s budget) + stock JPEG after the burst.
-- **Night** — same, with a 3 s budget (more frames).
-- **Inspector** — every CameraCharacteristics field listed in the brief, exported as JSON.
-- **Experiments** — list packages; share the latest as a zip.
+- **Photo** — HIE burst (the default). Looks like a normal camera; research capture still happens in the background.
+- **Night** — same, with a longer time budget.
+- Tap the viewfinder to focus. The preview keeps the sensor aspect (not stretched) and stays open if the camera briefly disconnects.
+- Frames are captured one at a time. If a RAW burst fails, the phone JPEG is still saved to the gallery.
+- After capture, the photo is shown at its real pixel size (Hanson / Phone toggle if both exist) and saved to **Gallery → DCIM/Hanson**.
+- Long-press the title for the lab page (packages + capability dump).
 
-Tap the viewfinder to meter/focus. The overlay shows ISO, exposure, RAW size, timestamp source and gyro presence.
+On-device budgets (written into `hie/process.json`): mosaics larger than 16 MP are 2×
+plane-downsampled; more than 8 frames are dropped after the reference. Colour uses
+`COLOR_CORRECTION_GAINS` + `COLOR_CORRECTION_TRANSFORM` from the capture result.
 
 ## Pull a package
 
@@ -47,11 +59,11 @@ hie process experiment_0001 -p hie_v0.1
 ```
 
 Layout matches [datasets/pixel6](../datasets/pixel6/README.md). The loader never drops frames
-silently; `hie package validate` lists missing DNGs as errors.
+silently; `hie package validate` lists missing DNGs as errors and reports `has_hie_jpeg`.
 
 ## What this is not
 
-- Not a Halide/NDK port of HIE (planned later as engineering).
+- Not hypothesis H1, not a new merge, not a generative ISP.
 - Not US 9,313,420 incremental SNR capture, not US 9,087,391 bracketing, not Zhang & Stevenson
   gyro alignment. Those stay documented prior art; the app only **records** gyro so the sync
   experiment can be run on a real phone.

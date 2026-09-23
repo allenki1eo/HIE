@@ -26,11 +26,29 @@ android {
         applicationId = "com.hanson.hie.cameralab"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 3
+        versionName = "0.2.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "GIT_COMMIT", "\"${gitCommit()}\"")
         buildConfigField("String", "PACKAGE_SCHEMA", "\"hie.camera_lab.package/v1\"")
+        ndk {
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
+        }
+        externalNativeBuild {
+            cmake {
+                cppFlags += "-std=c++17 -O3 -ffast-math"
+                arguments += "-DANDROID_STL=c++_shared"
+            }
+        }
+    }
+
+    ndkVersion = "26.2.11394342"
+
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
+        }
     }
 
     buildTypes {

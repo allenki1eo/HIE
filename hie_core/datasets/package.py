@@ -8,7 +8,7 @@ A package is a never-overwritten folder::
       raw/frame_000.dng …
       motion/sensors.csv       optional gyro + accelerometer
       stock/reference.jpg      optional hardware-ISP JPEG of the same scene
-      hie/                     outputs written later by ``hie process``
+      hie/                     on-device or workstation HIE output (``output.jpg``)
 
 The loader in :mod:`hie_core.datasets.folder` already reads ``raw/*.dng``.
 This module checks the layout and sidecars without silently dropping frames.
@@ -173,6 +173,7 @@ def validate_package(path: str | Path, *, require_dngs: bool = True) -> dict[str
         "declared_frames": declared,
         "motion_samples": motion_rows,
         "has_stock_jpeg": stock.is_file(),
+        "has_hie_jpeg": (path / "hie" / "output.jpg").is_file(),
         "has_metadata": meta_path.is_file(),
         "notes": notes,
         "problems": problems,

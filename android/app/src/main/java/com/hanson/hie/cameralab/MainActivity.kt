@@ -5,9 +5,15 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.BitmapFactory
 import android.hardware.camera2.CameraManager
+import android.media.Image
+import android.os.Build
 import android.os.Bundle
+import android.graphics.Matrix
+import android.graphics.SurfaceTexture
+import android.hardware.camera2.CameraCharacteristics
 import android.view.MotionEvent
-import android.view.SurfaceHolder
+import android.view.Surface
+import android.view.TextureView
 import android.view.View
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -18,32 +24,37 @@ import com.hanson.hie.cameralab.camera.Camera2Controller
 import com.hanson.hie.cameralab.camera.CapabilityInspector
 import com.hanson.hie.cameralab.camera.CaptureSink
 import com.hanson.hie.cameralab.camera.FrameMeta
+import com.hanson.hie.cameralab.camera.PreviewAspect
 import com.hanson.hie.cameralab.camera.SessionInfo
 import com.hanson.hie.cameralab.capture.BurstPlan
 import com.hanson.hie.cameralab.capture.BurstPolicy
 import com.hanson.hie.cameralab.capture.CaptureMode
 import com.hanson.hie.cameralab.capture.PackageWriter
+import com.hanson.hie.cameralab.process.GalleryStore
+import com.hanson.hie.cameralab.process.HieProcessor
 import com.hanson.hie.cameralab.sensors.MotionLogger
-import org.json.JSONObject
 import java.io.BufferedOutputStream
 import java.io.File
 import java.io.FileOutputStream
+import java.util.concurrent.Executors
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
-import android.media.Image
 
 class MainActivity : AppCompatActivity(), Camera2Controller.Listener {
-    private lateinit var preview: android.view.SurfaceView
-    private lateinit var meter: android.widget.TextView
-    private lateinit var status: android.widget.TextView
+    private lateinit var preview: TextureView
     private lateinit var progress: android.widget.TextView
     private lateinit var sheet: android.view.View
     private lateinit var sheetTitle: android.widget.TextView
     private lateinit var sheetBody: android.widget.TextView
     private lateinit var sheetAction: android.widget.TextView
+    private lateinit var sheetImage: android.widget.ImageView
+    private lateinit var sheetCaption: android.widget.TextView
+    private lateinit var sheetLabScroll: android.view.View
+    private lateinit var compareRow: android.view.View
+    private lateinit var compareHie: android.widget.TextView
+    private lateinit var comparePhone: android.widget.TextView
     private lateinit var thumb: android.widget.ImageView
     private lateinit var modePhoto: android.widget.TextView
-    private lateinit var modeBurst: android.widget.TextView
     private lateinit var modeNight: android.widget.TextView
 
     private lateinit var camera: Camera2Controller
@@ -54,28 +65,42 @@ class MainActivity : AppCompatActivity(), Camera2Controller.Listener {
     private var lastExp: Long? = null
     private var lastFocal: Float? = null
     private var surfaceReady = false
+    private var resumed = false
+    private var reconnects = 0
+    private var cameraSurface: Surface? = null
     private var writer: PackageWriter? = null
     private var firstRawTs: Long? = null
     private var firstGyroTs: Long? = null
+    private val rawCopies = mutableListOf<HieProcessor.RawCopy>()
+    private val hieExec = Executors.newSingleThreadExecutor()
+    private var lastHieJpeg: File? = null
+    private var lastStockJpeg: File? = null
+    private var reviewHie: File? = null
+    private var reviewStock: File? = null
+    private var showingHie = true
 
     private val askCamera = registerForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
-        if (ok) startPreview() else toast(getString(R.string.permission_required))
+        if (ok) openPreview() else toast(getString(R.string.permission_required))
     }
+    private val askStorage = registerForActivityResult(ActivityResultContracts.RequestPermission()) { /* gallery insert still attempted */ }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         preview = findViewById(R.id.preview)
-        meter = findViewById(R.id.meter)
-        status = findViewById(R.id.status)
         progress = findViewById(R.id.progress)
         sheet = findViewById(R.id.sheet)
         sheetTitle = findViewById(R.id.sheetTitle)
         sheetBody = findViewById(R.id.sheetBody)
         sheetAction = findViewById(R.id.sheetAction)
+        sheetImage = findViewById(R.id.sheetImage)
+        sheetCaption = findViewById(R.id.sheetCaption)
+        sheetLabScroll = findViewById(R.id.sheetLabScroll)
+        compareRow = findViewById(R.id.compareRow)
+        compareHie = findViewById(R.id.compareHie)
+        comparePhone = findViewById(R.id.comparePhone)
         thumb = findViewById(R.id.thumb)
         modePhoto = findViewById(R.id.modePhoto)
-        modeBurst = findViewById(R.id.modeBurst)
         modeNight = findViewById(R.id.modeNight)
 
         camera = Camera2Controller(this, this)
@@ -83,14 +108,17 @@ class MainActivity : AppCompatActivity(), Camera2Controller.Listener {
         cameraId = CapabilityInspector.chooseBackCameraId(this)
 
         findViewById<View>(R.id.shutter).setOnClickListener { onShutter() }
-        findViewById<View>(R.id.btnInspector).setOnClickListener { showInspector() }
-        findViewById<View>(R.id.btnExperiments).setOnClickListener { showExperiments() }
         findViewById<View>(R.id.sheetBack).setOnClickListener { sheet.visibility = View.GONE }
         findViewById<View>(R.id.btnSwitch).setOnClickListener { switchCamera() }
-        thumb.setOnClickListener { showExperiments() }
-        modePhoto.setOnClickListener { setMode(CaptureMode.PHOTO) }
-        modeBurst.setOnClickListener { setMode(CaptureMode.BURST) }
+        findViewById<View>(R.id.title).setOnLongClickListener {
+            showLab()
+            true
+        }
+        thumb.setOnClickListener { showLastPhoto() }
+        modePhoto.setOnClickListener { setMode(CaptureMode.BURST) }
         modeNight.setOnClickListener { setMode(CaptureMode.NIGHT) }
+        compareHie.setOnClickListener { showReview(true) }
+        comparePhone.setOnClickListener { showReview(false) }
 
         preview.setOnTouchListener { v, e ->
             if (e.action == MotionEvent.ACTION_UP && v.width > 0 && v.height > 0) {
@@ -99,29 +127,38 @@ class MainActivity : AppCompatActivity(), Camera2Controller.Listener {
             }
             true
         }
-
-        preview.holder.addCallback(object : SurfaceHolder.Callback {
-            override fun surfaceCreated(holder: SurfaceHolder) {
-                surfaceReady = true
-                startPreview()
-            }
-            override fun surfaceChanged(holder: SurfaceHolder, format: Int, w: Int, h: Int) {
-                if (surfaceReady) startPreview()
-            }
-            override fun surfaceDestroyed(holder: SurfaceHolder) {
-                surfaceReady = false
-                camera.stop()
-            }
-        })
+        preview.surfaceTextureListener = textureListener
+        if (preview.isAvailable) surfaceReady = true
+        askGalleryPermission()
         refreshThumb()
+    }
+
+    private val textureListener = object : TextureView.SurfaceTextureListener {
+        override fun onSurfaceTextureAvailable(st: SurfaceTexture, width: Int, height: Int) {
+            surfaceReady = true
+            openPreview()
+        }
+        override fun onSurfaceTextureSizeChanged(st: SurfaceTexture, width: Int, height: Int) {
+            camera.sessionInfo?.let { applyFit(it) }
+        }
+        override fun onSurfaceTextureDestroyed(st: SurfaceTexture): Boolean {
+            surfaceReady = false
+            camera.stop()
+            cameraSurface?.release()
+            cameraSurface = null
+            return true
+        }
+        override fun onSurfaceTextureUpdated(st: SurfaceTexture) {}
     }
 
     override fun onResume() {
         super.onResume()
-        if (surfaceReady) startPreview()
+        resumed = true
+        if (surfaceReady) openPreview()
     }
 
     override fun onPause() {
+        resumed = false
         camera.stop()
         motion.stop()
         super.onPause()
@@ -129,21 +166,35 @@ class MainActivity : AppCompatActivity(), Camera2Controller.Listener {
 
     override fun onDestroy() {
         camera.release()
+        hieExec.shutdownNow()
         super.onDestroy()
     }
 
-    private fun startPreview() {
-        if (!surfaceReady) return
+    private fun openPreview() {
+        if (!surfaceReady || !resumed) return
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
             askCamera.launch(Manifest.permission.CAMERA)
             return
         }
+        val texture = preview.surfaceTexture ?: return
         val id = cameraId ?: CapabilityInspector.chooseBackCameraId(this) ?: run {
-            status.text = "No camera"
+            toast(getString(R.string.not_ready))
             return
         }
         cameraId = id
-        camera.start(id, preview.holder.surface, preview.width, preview.height)
+        val (bw, bh) = previewBufferSize(id)
+        texture.setDefaultBufferSize(bw, bh)
+        if (cameraSurface == null) cameraSurface = Surface(texture)
+        camera.start(id, cameraSurface!!, bw, bh)
+    }
+
+    private fun askGalleryPermission() {
+        if (Build.VERSION.SDK_INT >= 29) return
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
+            != PackageManager.PERMISSION_GRANTED
+        ) {
+            askStorage.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+        }
     }
 
     private fun switchCamera() {
@@ -152,50 +203,97 @@ class MainActivity : AppCompatActivity(), Camera2Controller.Listener {
         if (ids.isEmpty()) return
         val idx = ids.indexOf(cameraId).let { if (it < 0) 0 else it }
         cameraId = ids[(idx + 1) % ids.size]
-        startPreview()
+        camera.stop()
+        cameraSurface?.release()
+        cameraSurface = null
+        preview.postDelayed({ if (resumed) openPreview() }, 250)
     }
 
     private fun setMode(m: CaptureMode) {
         mode = m
         val accent = ContextCompat.getColor(this, R.color.lab_accent)
         val muted = ContextCompat.getColor(this, R.color.lab_muted)
-        modePhoto.setTextColor(if (m == CaptureMode.PHOTO) accent else muted)
-        modeBurst.setTextColor(if (m == CaptureMode.BURST) accent else muted)
+        modePhoto.setTextColor(if (m == CaptureMode.BURST) accent else muted)
+        modePhoto.setTypeface(null, if (m == CaptureMode.BURST) android.graphics.Typeface.BOLD else android.graphics.Typeface.NORMAL)
         modeNight.setTextColor(if (m == CaptureMode.NIGHT) accent else muted)
-        updateMeter()
+        modeNight.setTypeface(null, if (m == CaptureMode.NIGHT) android.graphics.Typeface.BOLD else android.graphics.Typeface.NORMAL)
     }
 
     override fun onSession(info: SessionInfo) {
         runOnUiThread {
-            val raw = if (info.rawAvailable) "RAW ${info.rawSize?.width}×${info.rawSize?.height}" else "no RAW"
-            status.text = "cam ${info.cameraId} · $raw · ts=${info.timestampSource} · gyro=${motion.gyroAvailable}"
-            if (!info.rawAvailable && mode != CaptureMode.PHOTO) {
-                toast(getString(R.string.no_raw))
-            }
-            updateMeter()
+            reconnects = 0
+            applyFit(info)
         }
+    }
+
+    private fun applyFit(info: SessionInfo) {
+        val vw = preview.width
+        val vh = preview.height
+        if (vw <= 0 || vh <= 0) {
+            preview.post { if (preview.width > 0) applyFit(info) }
+            return
+        }
+        val fit = PreviewAspect.fit(
+            vw, vh, info.previewSize.width, info.previewSize.height,
+            info.sensorOrientation, displayRotationDegrees(),
+        )
+        // TextureView's matrix runs in view space, after the buffer is placed in the view.
+        // ScaleToFit.CENTER keeps both axes equal so the preview is not stretched.
+        val matrix = Matrix()
+        val uprightW = if (fit.rotationDeg % 180 == 0) info.previewSize.width else info.previewSize.height
+        val uprightH = if (fit.rotationDeg % 180 == 0) info.previewSize.height else info.previewSize.width
+        val src = android.graphics.RectF(0f, 0f, uprightW.toFloat(), uprightH.toFloat())
+        val dst = android.graphics.RectF(0f, 0f, vw.toFloat(), vh.toFloat())
+        matrix.setRectToRect(src, dst, Matrix.ScaleToFit.CENTER)
+        if (fit.rotationDeg != 0) {
+            matrix.preRotate(fit.rotationDeg.toFloat(), info.previewSize.width / 2f, info.previewSize.height / 2f)
+        }
+        preview.setTransform(matrix)
+    }
+
+    private fun displayRotationDegrees(): Int {
+        val rotation = if (Build.VERSION.SDK_INT >= 30) display?.rotation else @Suppress("DEPRECATION") windowManager.defaultDisplay.rotation
+        return when (rotation) {
+            Surface.ROTATION_90 -> 90
+            Surface.ROTATION_180 -> 180
+            Surface.ROTATION_270 -> 270
+            else -> 0
+        }
+    }
+
+    private fun previewBufferSize(id: String): Pair<Int, Int> {
+        val mgr = getSystemService(CAMERA_SERVICE) as android.hardware.camera2.CameraManager
+        val map = mgr.getCameraCharacteristics(id).get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
+        val sizes = map?.getOutputSizes(SurfaceTexture::class.java)
+            ?: map?.getOutputSizes(Surface::class.java)
+            ?: emptyArray()
+        return PreviewAspect.choosePreview(sizes.map { it.width to it.height })
     }
 
     override fun onMetering(iso: Int?, exposureNs: Long?, focal: Float?) {
         lastIso = iso
         lastExp = exposureNs
         lastFocal = focal
-        runOnUiThread { updateMeter() }
     }
 
     override fun onError(message: String) {
         runOnUiThread {
-            status.text = message
-            toast(message)
+            val lost = message.contains("disconnect", ignoreCase = true) ||
+                message.contains("camera error", ignoreCase = true) ||
+                message.contains("interrupted", ignoreCase = true)
+            if (!lost) {
+                toast(message)
+                return@runOnUiThread
+            }
+            progress.visibility = View.GONE
+            if (resumed && surfaceReady && reconnects < 3) {
+                reconnects++
+                toast(getString(R.string.reconnecting))
+                preview.postDelayed({ if (resumed && surfaceReady) openPreview() }, 700)
+            } else {
+                toast(getString(R.string.capture_failed))
+            }
         }
-    }
-
-    private fun updateMeter() {
-        val expMs = lastExp?.let { it / 1_000_000.0 }
-        val plan = currentPlan()
-        meter.text = "ISO ${lastIso ?: "—"}   ${expMs?.let { "%.1f ms".format(it) } ?: "—"}   " +
-            "f ${lastFocal ?: "—"}   ${mode.name} ×${plan.frameCount}\n" +
-            plan.reason
     }
 
     private fun currentPlan(): BurstPlan {
@@ -206,7 +304,8 @@ class MainActivity : AppCompatActivity(), Camera2Controller.Listener {
     private fun onShutter() {
         if (camera.isCapturing) return
         val info = camera.sessionInfo ?: run {
-            toast("Camera not ready")
+            toast(getString(R.string.not_ready))
+            openPreview()
             return
         }
         val plan = currentPlan()
@@ -220,12 +319,18 @@ class MainActivity : AppCompatActivity(), Camera2Controller.Listener {
         writer = pw
         firstRawTs = null
         firstGyroTs = null
+        rawCopies.clear()
         motion.start()
         progress.visibility = View.VISIBLE
-        progress.text = "Capturing 0/${plan.frameCount}"
+        progress.text = getString(R.string.capturing)
+        val processor = HieProcessor(this, store)
         camera.capture(plan, object : CaptureSink {
             override fun onRaw(index: Int, image: Image, meta: FrameMeta) {
                 if (firstRawTs == null) firstRawTs = meta.sensorTimestampNs
+                try {
+                    rawCopies.add(processor.copyRaw(image, meta))
+                } catch (_: Exception) {
+                }
                 pw.writeRaw(index, image, meta)
             }
 
@@ -234,7 +339,7 @@ class MainActivity : AppCompatActivity(), Camera2Controller.Listener {
             }
 
             override fun onProgress(done: Int, total: Int) {
-                runOnUiThread { progress.text = "Capturing $done/$total" }
+                runOnUiThread { progress.text = getString(R.string.capturing) }
             }
 
             override fun onComplete(notes: List<String>) {
@@ -243,9 +348,16 @@ class MainActivity : AppCompatActivity(), Camera2Controller.Listener {
 
             override fun onFailed(message: String) {
                 motion.stop()
+                val stock = File(pw.dir, "stock/reference.jpg").takeIf { it.exists() }
+                val gallery = stock?.let { GalleryStore.saveJpeg(this@MainActivity, it) }
                 runOnUiThread {
                     progress.visibility = View.GONE
-                    toast(message)
+                    refreshThumb()
+                    if (stock != null) {
+                        showPhoto(stock, null, null, null, gallery != null)
+                    } else {
+                        toast(getString(R.string.capture_failed))
+                    }
                 }
             }
         })
@@ -271,64 +383,152 @@ class MainActivity : AppCompatActivity(), Camera2Controller.Listener {
         } catch (e: Exception) {
             runOnUiThread { toast(e.message ?: "finish") }
         }
-        runOnUiThread {
-            progress.visibility = View.GONE
-            status.text = "saved ${pw.dir.name}  (${File(pw.dir, "raw").list()?.size ?: 0} DNG)"
-            refreshThumb()
-            toast("Saved ${pw.dir.name}")
+        val copies = rawCopies.toList()
+        rawCopies.clear()
+        lastStockJpeg = File(pw.dir, "stock/reference.jpg").takeIf { it.exists() }
+        if (copies.isNotEmpty()) {
+            runOnUiThread {
+                progress.visibility = View.VISIBLE
+                progress.text = getString(R.string.hie_merge)
+            }
+            hieExec.execute {
+                try {
+                    val processor = HieProcessor(this, (application as CameraLabApp).experiments)
+                    val result = processor.process(pw.dir, info, copies)
+                    lastHieJpeg = result.jpeg
+                    val gallery = result.galleryUri ?: GalleryStore.saveJpeg(this, result.jpeg)
+                    runOnUiThread {
+                        progress.visibility = View.GONE
+                        refreshThumb()
+                        showPhoto(result.jpeg, lastStockJpeg, result.width, result.height, gallery != null)
+                    }
+                } catch (e: Exception) {
+                    val stock = lastStockJpeg
+                    val gallery = stock?.let { GalleryStore.saveJpeg(this, it) }
+                    runOnUiThread {
+                        progress.visibility = View.GONE
+                        refreshThumb()
+                        if (stock != null) {
+                            showPhoto(stock, null, null, null, gallery != null)
+                        } else {
+                            toast(e.message ?: "Could not finish photo")
+                        }
+                    }
+                }
+            }
+        } else {
+            val stock = lastStockJpeg
+            val gallery = stock?.let { GalleryStore.saveJpeg(this, it) }
+            runOnUiThread {
+                progress.visibility = View.GONE
+                refreshThumb()
+                if (stock != null) {
+                    showPhoto(stock, null, null, null, gallery != null)
+                } else {
+                    toast("Saved")
+                }
+            }
         }
         writer = null
     }
 
-    private fun showInspector() {
-        val json = CapabilityInspector.dumpAll(this)
-        val export = File(filesDir, "exports").apply { mkdirs() }
-        val out = File(export, "capabilities.json")
-        out.writeText(json.toString(2))
-        sheetTitle.text = "Capability inspector"
-        sheetBody.text = json.toString(2)
-        sheetAction.text = getString(R.string.export_json)
-        sheetAction.setOnClickListener { shareFile(out, "application/json") }
+    private fun showPhoto(hie: File, stock: File?, width: Int?, height: Int?, inGallery: Boolean) {
+        reviewHie = hie
+        reviewStock = stock?.takeIf { it.exists() && it.absolutePath != hie.absolutePath }
+        showingHie = true
+        sheetLabScroll.visibility = View.GONE
+        sheetImage.visibility = View.VISIBLE
+        sheetCaption.visibility = View.VISIBLE
+        compareRow.visibility = if (reviewStock != null) View.VISIBLE else View.GONE
+        sheetTitle.text = getString(R.string.hie_jpeg)
+        sheetAction.text = getString(R.string.share)
+        sheetAction.setOnClickListener {
+            val file = if (showingHie) reviewHie else reviewStock
+            if (file != null) shareFile(file, "image/jpeg")
+        }
+        showReview(true)
+        val size = if (width != null && height != null) getString(R.string.size_caption, width, height) else photoSize(hie)
+        val gallery = if (inGallery) getString(R.string.saved_gallery) else getString(R.string.saved_gallery_failed)
+        sheetCaption.text = "$size\n$gallery"
         sheet.visibility = View.VISIBLE
+        toast(if (inGallery) getString(R.string.saved_gallery) else getString(R.string.saved_gallery_failed))
     }
 
-    private fun showExperiments() {
+    private fun showReview(hie: Boolean) {
+        showingHie = hie
+        val file = if (hie) reviewHie else reviewStock
+        if (file != null) {
+            sheetImage.setImageBitmap(decodeForView(file))
+            val extra = photoSize(file)
+            val galleryLine = sheetCaption.text.toString().substringAfter('\n', "")
+            sheetCaption.text = if (galleryLine.isNotEmpty()) "$extra\n$galleryLine" else extra
+        }
+        val accent = ContextCompat.getColor(this, R.color.lab_accent)
+        val muted = ContextCompat.getColor(this, R.color.lab_muted)
+        compareHie.setTextColor(if (hie) accent else muted)
+        comparePhone.setTextColor(if (!hie) accent else muted)
+    }
+
+    private fun showLastPhoto() {
+        val latest = (application as CameraLabApp).experiments.list().firstOrNull() ?: return
+        val hie = File(latest, "hie/output.jpg").takeIf { it.exists() } ?: lastHieJpeg
+        val stock = File(latest, "stock/reference.jpg").takeIf { it.exists() } ?: lastStockJpeg
+        val main = hie ?: stock ?: return
+        showPhoto(main, stock, null, null, true)
+    }
+
+    private fun showLab() {
+        sheetImage.visibility = View.GONE
+        compareRow.visibility = View.GONE
+        sheetCaption.visibility = View.GONE
+        sheetLabScroll.visibility = View.VISIBLE
         val store = (application as CameraLabApp).experiments
-        val pkgs = store.list()
+        val json = CapabilityInspector.dumpAll(this)
         val sb = StringBuilder()
-        if (pkgs.isEmpty()) sb.append("No packages yet. Capture a burst.\n")
-        for (p in pkgs) {
-            val exp = File(p, "experiment.json")
+        sb.append("Long-press title for this lab page.\n\n")
+        for (p in store.list()) {
             val n = File(p, "raw").list()?.size ?: 0
             sb.append(p.name).append("  raw=").append(n)
-            if (exp.exists()) {
-                try {
-                    val o = JSONObject(exp.readText())
-                    sb.append("  ").append(o.optJSONObject("capture_policy")?.optString("mode"))
-                } catch (_: Exception) {
-                }
-            }
+            if (File(p, "hie/output.jpg").exists()) sb.append("  hie")
             sb.append('\n')
         }
-        sb.append("\nPull with:\nadb pull ")
-        sb.append(store.list().firstOrNull()?.parent ?: filesDir.resolve("experiments").absolutePath)
-        sb.append("\nthen: hie process <folder> -p hie_v0.1\n")
-        sheetTitle.text = "Experiments"
+        sb.append('\n').append(json.toString(2))
+        sheetTitle.text = getString(R.string.experiments)
         sheetBody.text = sb.toString()
-        val latest = pkgs.firstOrNull()
+        val latest = store.list().firstOrNull()
         sheetAction.text = if (latest != null) getString(R.string.share_package) else ""
-        sheetAction.setOnClickListener {
-            if (latest != null) shareZip(latest)
-        }
+        sheetAction.setOnClickListener { if (latest != null) shareZip(latest) }
         sheet.visibility = View.VISIBLE
     }
 
     private fun refreshThumb() {
         val latest = (application as CameraLabApp).experiments.list().firstOrNull() ?: return
-        val jpg = listOf(File(latest, "stock/reference.jpg"), File(latest, "preview.jpg")).firstOrNull { it.exists() }
+        val jpg = listOf(
+            File(latest, "hie/output.jpg"),
+            lastHieJpeg,
+            File(latest, "stock/reference.jpg"),
+            File(latest, "preview.jpg"),
+        ).firstOrNull { it != null && it.exists() }
         if (jpg != null) {
-            thumb.setImageBitmap(BitmapFactory.decodeFile(jpg.absolutePath))
+            thumb.setImageBitmap(decodeForView(jpg, 256))
         }
+    }
+
+    private fun photoSize(file: File): String {
+        val opt = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeFile(file.absolutePath, opt)
+        return if (opt.outWidth > 0) getString(R.string.size_caption, opt.outWidth, opt.outHeight) else file.name
+    }
+
+    private fun decodeForView(file: File, maxSide: Int = 2048): android.graphics.Bitmap? {
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeFile(file.absolutePath, bounds)
+        val w = bounds.outWidth.coerceAtLeast(1)
+        val h = bounds.outHeight.coerceAtLeast(1)
+        var sample = 1
+        while (w / sample > maxSide || h / sample > maxSide) sample *= 2
+        val opts = BitmapFactory.Options().apply { inSampleSize = sample }
+        return BitmapFactory.decodeFile(file.absolutePath, opts)
     }
 
     private fun shareZip(dir: File) {
@@ -350,5 +550,5 @@ class MainActivity : AppCompatActivity(), Camera2Controller.Listener {
         startActivity(Intent.createChooser(intent, file.name))
     }
 
-    private fun toast(msg: String) = Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
+    private fun toast(msg: String) = Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
 }
