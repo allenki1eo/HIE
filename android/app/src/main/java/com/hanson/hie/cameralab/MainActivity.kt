@@ -8,11 +8,13 @@ import android.hardware.camera2.CameraManager
 import android.media.Image
 import android.os.Build
 import android.os.Bundle
-import android.view.Gravity
+import android.graphics.Matrix
+import android.graphics.SurfaceTexture
+import android.hardware.camera2.CameraCharacteristics
 import android.view.MotionEvent
-import android.view.SurfaceHolder
+import android.view.Surface
+import android.view.TextureView
 import android.view.View
-import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -39,8 +41,7 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
 class MainActivity : AppCompatActivity(), Camera2Controller.Listener {
-    private lateinit var root: View
-    private lateinit var preview: android.view.SurfaceView
+    private lateinit var preview: TextureView
     private lateinit var progress: android.widget.TextView
     private lateinit var sheet: android.view.View
     private lateinit var sheetTitle: android.widget.TextView
@@ -64,6 +65,9 @@ class MainActivity : AppCompatActivity(), Camera2Controller.Listener {
     private var lastExp: Long? = null
     private var lastFocal: Float? = null
     private var surfaceReady = false
+    private var resumed = false
+    private var reconnects = 0
+    private var cameraSurface: Surface? = null
     private var writer: PackageWriter? = null
     private var firstRawTs: Long? = null
     private var firstGyroTs: Long? = null
@@ -76,14 +80,13 @@ class MainActivity : AppCompatActivity(), Camera2Controller.Listener {
     private var showingHie = true
 
     private val askCamera = registerForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
-        if (ok) startPreview() else toast(getString(R.string.permission_required))
+        if (ok) openPreview() else toast(getString(R.string.permission_required))
     }
     private val askStorage = registerForActivityResult(ActivityResultContracts.RequestPermission()) { /* gallery insert still attempted */ }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-        root = findViewById(R.id.root)
         preview = findViewById(R.id.preview)
         progress = findViewById(R.id.progress)
         sheet = findViewById(R.id.sheet)
@@ -124,30 +127,38 @@ class MainActivity : AppCompatActivity(), Camera2Controller.Listener {
             }
             true
         }
-
-        preview.holder.addCallback(object : SurfaceHolder.Callback {
-            override fun surfaceCreated(holder: SurfaceHolder) {
-                surfaceReady = true
-                startPreview()
-            }
-            override fun surfaceChanged(holder: SurfaceHolder, format: Int, w: Int, h: Int) {
-                // Letterbox resizes the view; do not reopen the camera here.
-            }
-            override fun surfaceDestroyed(holder: SurfaceHolder) {
-                surfaceReady = false
-                camera.stop()
-            }
-        })
+        preview.surfaceTextureListener = textureListener
+        if (preview.isAvailable) surfaceReady = true
         askGalleryPermission()
         refreshThumb()
     }
 
+    private val textureListener = object : TextureView.SurfaceTextureListener {
+        override fun onSurfaceTextureAvailable(st: SurfaceTexture, width: Int, height: Int) {
+            surfaceReady = true
+            openPreview()
+        }
+        override fun onSurfaceTextureSizeChanged(st: SurfaceTexture, width: Int, height: Int) {
+            camera.sessionInfo?.let { applyFit(it) }
+        }
+        override fun onSurfaceTextureDestroyed(st: SurfaceTexture): Boolean {
+            surfaceReady = false
+            camera.stop()
+            cameraSurface?.release()
+            cameraSurface = null
+            return true
+        }
+        override fun onSurfaceTextureUpdated(st: SurfaceTexture) {}
+    }
+
     override fun onResume() {
         super.onResume()
-        if (surfaceReady) startPreview()
+        resumed = true
+        if (surfaceReady) openPreview()
     }
 
     override fun onPause() {
+        resumed = false
         camera.stop()
         motion.stop()
         super.onPause()
@@ -159,18 +170,22 @@ class MainActivity : AppCompatActivity(), Camera2Controller.Listener {
         super.onDestroy()
     }
 
-    private fun startPreview() {
-        if (!surfaceReady) return
+    private fun openPreview() {
+        if (!surfaceReady || !resumed) return
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
             askCamera.launch(Manifest.permission.CAMERA)
             return
         }
+        val texture = preview.surfaceTexture ?: return
         val id = cameraId ?: CapabilityInspector.chooseBackCameraId(this) ?: run {
-            toast("No camera")
+            toast(getString(R.string.not_ready))
             return
         }
         cameraId = id
-        camera.start(id, preview.holder.surface, preview.width, preview.height)
+        val (bw, bh) = previewBufferSize(id)
+        texture.setDefaultBufferSize(bw, bh)
+        if (cameraSurface == null) cameraSurface = Surface(texture)
+        camera.start(id, cameraSurface!!, bw, bh)
     }
 
     private fun askGalleryPermission() {
@@ -188,7 +203,10 @@ class MainActivity : AppCompatActivity(), Camera2Controller.Listener {
         if (ids.isEmpty()) return
         val idx = ids.indexOf(cameraId).let { if (it < 0) 0 else it }
         cameraId = ids[(idx + 1) % ids.size]
-        startPreview()
+        camera.stop()
+        cameraSurface?.release()
+        cameraSurface = null
+        preview.postDelayed({ if (resumed) openPreview() }, 250)
     }
 
     private fun setMode(m: CaptureMode) {
@@ -203,29 +221,53 @@ class MainActivity : AppCompatActivity(), Camera2Controller.Listener {
 
     override fun onSession(info: SessionInfo) {
         runOnUiThread {
-            applyLetterbox(info)
-            if (!info.rawAvailable && mode != CaptureMode.PHOTO) {
-                toast(getString(R.string.no_raw))
-            }
+            reconnects = 0
+            applyFit(info)
         }
     }
 
-    private fun applyLetterbox(info: SessionInfo) {
-        val pw = root.width
-        val ph = root.height
-        if (pw <= 0 || ph <= 0) {
-            root.post { if (root.width > 0) applyLetterbox(info) }
+    private fun applyFit(info: SessionInfo) {
+        val vw = preview.width
+        val vh = preview.height
+        if (vw <= 0 || vh <= 0) {
+            preview.post { if (preview.width > 0) applyFit(info) }
             return
         }
-        val box = PreviewAspect.letterbox(
-            pw, ph, info.previewSize.width, info.previewSize.height, info.sensorOrientation,
+        val fit = PreviewAspect.fit(
+            vw, vh, info.previewSize.width, info.previewSize.height,
+            info.sensorOrientation, displayRotationDegrees(),
         )
-        val lp = preview.layoutParams as FrameLayout.LayoutParams
-        if (lp.width == box.width && lp.height == box.height) return
-        lp.width = box.width
-        lp.height = box.height
-        lp.gravity = Gravity.CENTER
-        preview.layoutParams = lp
+        // TextureView's matrix runs in view space, after the buffer is placed in the view.
+        // ScaleToFit.CENTER keeps both axes equal so the preview is not stretched.
+        val matrix = Matrix()
+        val uprightW = if (fit.rotationDeg % 180 == 0) info.previewSize.width else info.previewSize.height
+        val uprightH = if (fit.rotationDeg % 180 == 0) info.previewSize.height else info.previewSize.width
+        val src = android.graphics.RectF(0f, 0f, uprightW.toFloat(), uprightH.toFloat())
+        val dst = android.graphics.RectF(0f, 0f, vw.toFloat(), vh.toFloat())
+        matrix.setRectToRect(src, dst, Matrix.ScaleToFit.CENTER)
+        if (fit.rotationDeg != 0) {
+            matrix.preRotate(fit.rotationDeg.toFloat(), info.previewSize.width / 2f, info.previewSize.height / 2f)
+        }
+        preview.setTransform(matrix)
+    }
+
+    private fun displayRotationDegrees(): Int {
+        val rotation = if (Build.VERSION.SDK_INT >= 30) display?.rotation else @Suppress("DEPRECATION") windowManager.defaultDisplay.rotation
+        return when (rotation) {
+            Surface.ROTATION_90 -> 90
+            Surface.ROTATION_180 -> 180
+            Surface.ROTATION_270 -> 270
+            else -> 0
+        }
+    }
+
+    private fun previewBufferSize(id: String): Pair<Int, Int> {
+        val mgr = getSystemService(CAMERA_SERVICE) as android.hardware.camera2.CameraManager
+        val map = mgr.getCameraCharacteristics(id).get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
+        val sizes = map?.getOutputSizes(SurfaceTexture::class.java)
+            ?: map?.getOutputSizes(Surface::class.java)
+            ?: emptyArray()
+        return PreviewAspect.choosePreview(sizes.map { it.width to it.height })
     }
 
     override fun onMetering(iso: Int?, exposureNs: Long?, focal: Float?) {
@@ -235,7 +277,23 @@ class MainActivity : AppCompatActivity(), Camera2Controller.Listener {
     }
 
     override fun onError(message: String) {
-        runOnUiThread { toast(message) }
+        runOnUiThread {
+            val lost = message.contains("disconnect", ignoreCase = true) ||
+                message.contains("camera error", ignoreCase = true) ||
+                message.contains("interrupted", ignoreCase = true)
+            if (!lost) {
+                toast(message)
+                return@runOnUiThread
+            }
+            progress.visibility = View.GONE
+            if (resumed && surfaceReady && reconnects < 3) {
+                reconnects++
+                toast(getString(R.string.reconnecting))
+                preview.postDelayed({ if (resumed && surfaceReady) openPreview() }, 700)
+            } else {
+                toast(getString(R.string.capture_failed))
+            }
+        }
     }
 
     private fun currentPlan(): BurstPlan {
@@ -246,7 +304,8 @@ class MainActivity : AppCompatActivity(), Camera2Controller.Listener {
     private fun onShutter() {
         if (camera.isCapturing) return
         val info = camera.sessionInfo ?: run {
-            toast("Camera not ready")
+            toast(getString(R.string.not_ready))
+            openPreview()
             return
         }
         val plan = currentPlan()
@@ -289,9 +348,16 @@ class MainActivity : AppCompatActivity(), Camera2Controller.Listener {
 
             override fun onFailed(message: String) {
                 motion.stop()
+                val stock = File(pw.dir, "stock/reference.jpg").takeIf { it.exists() }
+                val gallery = stock?.let { GalleryStore.saveJpeg(this@MainActivity, it) }
                 runOnUiThread {
                     progress.visibility = View.GONE
-                    toast(message)
+                    refreshThumb()
+                    if (stock != null) {
+                        showPhoto(stock, null, null, null, gallery != null)
+                    } else {
+                        toast(getString(R.string.capture_failed))
+                    }
                 }
             }
         })

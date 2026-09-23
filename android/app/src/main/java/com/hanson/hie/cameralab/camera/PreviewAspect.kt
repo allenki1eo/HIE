@@ -36,6 +36,28 @@ object PreviewAspect {
     }
 
     /**
+     * Upright fit of a camera buffer into a view. Scale is the same on both axes
+     * so the picture is not stretched. Rotation is sensor orientation minus the
+     * display rotation, in degrees clockwise.
+     */
+    data class Fit(val rotationDeg: Int, val scale: Float, val contentWidth: Int, val contentHeight: Int)
+
+    fun fit(
+        viewW: Int,
+        viewH: Int,
+        bufferW: Int,
+        bufferH: Int,
+        sensorOrientationDeg: Int,
+        displayRotationDeg: Int = 0,
+    ): Fit {
+        val rotation = ((sensorOrientationDeg - displayRotationDeg) % 360 + 360) % 360
+        val rotW = if (rotation % 180 == 0) bufferW.coerceAtLeast(1) else bufferH.coerceAtLeast(1)
+        val rotH = if (rotation % 180 == 0) bufferH.coerceAtLeast(1) else bufferW.coerceAtLeast(1)
+        val scale = kotlin.math.min(viewW.coerceAtLeast(1).toFloat() / rotW, viewH.coerceAtLeast(1).toFloat() / rotH)
+        return Fit(rotation, scale, (rotW * scale).toInt().coerceAtLeast(1), (rotH * scale).toInt().coerceAtLeast(1))
+    }
+
+    /**
      * Prefer a 4:3 preview near 1–2 MP so the viewfinder matches stills.
      * [sizes] are (width, height) in sensor coordinates.
      */

@@ -28,7 +28,9 @@ Each shutter press writes a never-overwritten package under the app’s files di
 A copy of `hie/output.jpg` is inserted into the device gallery as
 `DCIM/Hanson/Hanson_yyyyMMdd_HHmmss.jpg` (falls back to `Pictures/Hanson`).
 The in-app review shows the photo at its real aspect ratio (not stretched)
-and can toggle Hanson vs the phone ISP still.
+and can toggle Hanson vs the phone ISP still. The viewfinder uses a TextureView
+fit (uniform scale) so resizing it does not drop the camera session. RAW frames
+are requested one at a time; a failed burst still saves the phone JPEG.
 
 Camera characteristics are **enumerated**, never hard-coded to Pixel 6.
 

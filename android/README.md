@@ -41,7 +41,8 @@ the app still takes JPEGs and records `raw_available=false` (no on-device HIE wi
 
 - **Photo** — HIE burst (the default). Looks like a normal camera; research capture still happens in the background.
 - **Night** — same, with a longer time budget.
-- Tap the viewfinder to focus. The preview is letterboxed to the sensor aspect so it is not stretched.
+- Tap the viewfinder to focus. The preview keeps the sensor aspect (not stretched) and stays open if the camera briefly disconnects.
+- Frames are captured one at a time. If a RAW burst fails, the phone JPEG is still saved to the gallery.
 - After capture, the photo is shown at its real pixel size (Hanson / Phone toggle if both exist) and saved to **Gallery → DCIM/Hanson**.
 - Long-press the title for the lab page (packages + capability dump).
 

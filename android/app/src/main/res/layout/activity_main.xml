@@ -5,7 +5,7 @@
     android:layout_height="match_parent"
     android:background="@color/lab_black">
 
-    <SurfaceView
+    <TextureView
         android:id="@+id/preview"
         android:layout_width="match_parent"
         android:layout_height="match_parent"

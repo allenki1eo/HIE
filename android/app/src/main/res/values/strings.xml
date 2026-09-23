@@ -14,6 +14,9 @@
     <string name="storage_permission">Allow storage so photos can appear in your gallery.</string>
     <string name="no_raw">This camera cannot save RAW. Photos still go to the gallery.</string>
     <string name="capturing">Taking photo…</string>
+    <string name="reconnecting">Camera disconnected. Reconnecting…</string>
+    <string name="capture_failed">Couldn\'t take the photo. Tap the shutter again.</string>
+    <string name="not_ready">Camera is starting…</string>
     <string name="hie_merge">Finishing photo…</string>
     <string name="saved_gallery">Saved to gallery</string>
     <string name="saved_gallery_failed">Photo saved in the app. Gallery export failed.</string>

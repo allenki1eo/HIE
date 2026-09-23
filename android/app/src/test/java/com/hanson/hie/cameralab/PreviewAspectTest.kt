@@ -36,6 +36,15 @@ class PreviewAspectTest {
     }
 
     @Test
+    fun portraitFitIsUniformAndUnstretched() {
+        val fit = PreviewAspect.fit(1080, 1920, 1440, 1080, sensorOrientationDeg = 90, displayRotationDeg = 0)
+        assertEquals(90, fit.rotationDeg)
+        assertEquals(1080, fit.contentWidth)
+        assertEquals(1440, fit.contentHeight)
+        assertEquals(1f, fit.scale, 0.01f)
+    }
+
+    @Test
     fun emptySizesFallsBack() {
         val chosen = PreviewAspect.choosePreview(emptyList())
         assertTrue(chosen.first > 0 && chosen.second > 0)

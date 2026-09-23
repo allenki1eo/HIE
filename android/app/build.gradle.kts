@@ -26,8 +26,8 @@ android {
         applicationId = "com.hanson.hie.cameralab"
         minSdk = 26
         targetSdk = 34
-        versionCode = 2
-        versionName = "0.2.0"
+        versionCode = 3
+        versionName = "0.2.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "GIT_COMMIT", "\"${gitCommit()}\"")
         buildConfigField("String", "PACKAGE_SCHEMA", "\"hie.camera_lab.package/v1\"")
