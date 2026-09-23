@@ -23,11 +23,13 @@ import com.hanson.hie.cameralab.capture.BurstPlan
 import com.hanson.hie.cameralab.capture.BurstPolicy
 import com.hanson.hie.cameralab.capture.CaptureMode
 import com.hanson.hie.cameralab.capture.PackageWriter
+import com.hanson.hie.cameralab.process.HieProcessor
 import com.hanson.hie.cameralab.sensors.MotionLogger
 import org.json.JSONObject
 import java.io.BufferedOutputStream
 import java.io.File
 import java.io.FileOutputStream
+import java.util.concurrent.Executors
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 import android.media.Image
@@ -41,6 +43,7 @@ class MainActivity : AppCompatActivity(), Camera2Controller.Listener {
     private lateinit var sheetTitle: android.widget.TextView
     private lateinit var sheetBody: android.widget.TextView
     private lateinit var sheetAction: android.widget.TextView
+    private lateinit var sheetImage: android.widget.ImageView
     private lateinit var thumb: android.widget.ImageView
     private lateinit var modePhoto: android.widget.TextView
     private lateinit var modeBurst: android.widget.TextView
@@ -57,6 +60,9 @@ class MainActivity : AppCompatActivity(), Camera2Controller.Listener {
     private var writer: PackageWriter? = null
     private var firstRawTs: Long? = null
     private var firstGyroTs: Long? = null
+    private val rawCopies = mutableListOf<HieProcessor.RawCopy>()
+    private val hieExec = Executors.newSingleThreadExecutor()
+    private var lastHieJpeg: File? = null
 
     private val askCamera = registerForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
         if (ok) startPreview() else toast(getString(R.string.permission_required))
@@ -73,6 +79,7 @@ class MainActivity : AppCompatActivity(), Camera2Controller.Listener {
         sheetTitle = findViewById(R.id.sheetTitle)
         sheetBody = findViewById(R.id.sheetBody)
         sheetAction = findViewById(R.id.sheetAction)
+        sheetImage = findViewById(R.id.sheetImage)
         thumb = findViewById(R.id.thumb)
         modePhoto = findViewById(R.id.modePhoto)
         modeBurst = findViewById(R.id.modeBurst)
@@ -129,6 +136,7 @@ class MainActivity : AppCompatActivity(), Camera2Controller.Listener {
 
     override fun onDestroy() {
         camera.release()
+        hieExec.shutdownNow()
         super.onDestroy()
     }
 
@@ -220,12 +228,19 @@ class MainActivity : AppCompatActivity(), Camera2Controller.Listener {
         writer = pw
         firstRawTs = null
         firstGyroTs = null
+        rawCopies.clear()
         motion.start()
         progress.visibility = View.VISIBLE
         progress.text = "Capturing 0/${plan.frameCount}"
+        val processor = HieProcessor(this, store)
         camera.capture(plan, object : CaptureSink {
             override fun onRaw(index: Int, image: Image, meta: FrameMeta) {
                 if (firstRawTs == null) firstRawTs = meta.sensorTimestampNs
+                try {
+                    rawCopies.add(processor.copyRaw(image, meta))
+                } catch (e: Exception) {
+                    // DNG still written; HIE may run with fewer copies
+                }
                 pw.writeRaw(index, image, meta)
             }
 
@@ -271,13 +286,56 @@ class MainActivity : AppCompatActivity(), Camera2Controller.Listener {
         } catch (e: Exception) {
             runOnUiThread { toast(e.message ?: "finish") }
         }
+        val copies = rawCopies.toList()
+        rawCopies.clear()
         runOnUiThread {
-            progress.visibility = View.GONE
             status.text = "saved ${pw.dir.name}  (${File(pw.dir, "raw").list()?.size ?: 0} DNG)"
             refreshThumb()
-            toast("Saved ${pw.dir.name}")
+        }
+        if (copies.isNotEmpty()) {
+            runOnUiThread {
+                progress.visibility = View.VISIBLE
+                progress.text = getString(R.string.hie_merge)
+            }
+            hieExec.execute {
+                try {
+                    val processor = HieProcessor(this, (application as CameraLabApp).experiments)
+                    val result = processor.process(pw.dir, info, copies)
+                    lastHieJpeg = result.jpeg
+                    runOnUiThread {
+                        progress.visibility = View.GONE
+                        status.text = "HIE ${pw.dir.name}  ${result.width}×${result.height}"
+                        refreshThumb()
+                        showHieResult(result)
+                        toast("HIE JPEG ${pw.dir.name}")
+                    }
+                } catch (e: Exception) {
+                    runOnUiThread {
+                        progress.visibility = View.GONE
+                        status.text = "HIE failed: ${e.message}"
+                        toast(e.message ?: "HIE failed")
+                    }
+                }
+            }
+        } else {
+            runOnUiThread {
+                progress.visibility = View.GONE
+                toast("Saved ${pw.dir.name}")
+            }
         }
         writer = null
+    }
+
+    private fun showHieResult(result: HieProcessor.Result) {
+        sheetImage.visibility = View.VISIBLE
+        sheetImage.setImageBitmap(BitmapFactory.decodeFile(result.jpeg.absolutePath))
+        sheetTitle.text = getString(R.string.hie_jpeg)
+        val gallery = result.galleryUri?.let { "\ngallery $it" } ?: ""
+        sheetBody.text = "hie/output.jpg  ${result.width}×${result.height}\n" +
+            result.processJson + gallery
+        sheetAction.text = getString(R.string.share_hie)
+        sheetAction.setOnClickListener { shareFile(result.jpeg, "image/jpeg") }
+        sheet.visibility = View.VISIBLE
     }
 
     private fun showInspector() {
@@ -285,6 +343,7 @@ class MainActivity : AppCompatActivity(), Camera2Controller.Listener {
         val export = File(filesDir, "exports").apply { mkdirs() }
         val out = File(export, "capabilities.json")
         out.writeText(json.toString(2))
+        sheetImage.visibility = View.GONE
         sheetTitle.text = "Capability inspector"
         sheetBody.text = json.toString(2)
         sheetAction.text = getString(R.string.export_json)
@@ -300,7 +359,9 @@ class MainActivity : AppCompatActivity(), Camera2Controller.Listener {
         for (p in pkgs) {
             val exp = File(p, "experiment.json")
             val n = File(p, "raw").list()?.size ?: 0
+            val hie = File(p, "hie/output.jpg").exists()
             sb.append(p.name).append("  raw=").append(n)
+            if (hie) sb.append("  hie")
             if (exp.exists()) {
                 try {
                     val o = JSONObject(exp.readText())
@@ -310,12 +371,19 @@ class MainActivity : AppCompatActivity(), Camera2Controller.Listener {
             }
             sb.append('\n')
         }
-        sb.append("\nPull with:\nadb pull ")
+        sb.append("\nOn-device HIE writes hie/output.jpg after each RAW burst.\n")
+        sb.append("Pull with:\nadb pull ")
         sb.append(store.list().firstOrNull()?.parent ?: filesDir.resolve("experiments").absolutePath)
-        sb.append("\nthen: hie process <folder> -p hie_v0.1\n")
+        sb.append("\nWorkstation check: hie process <folder> -p hie_v0.1\n")
+        sheetImage.visibility = View.GONE
         sheetTitle.text = "Experiments"
         sheetBody.text = sb.toString()
         val latest = pkgs.firstOrNull()
+        val latestHie = latest?.let { File(it, "hie/output.jpg") }?.takeIf { it.exists() }
+        if (latestHie != null) {
+            sheetImage.visibility = View.VISIBLE
+            sheetImage.setImageBitmap(BitmapFactory.decodeFile(latestHie.absolutePath))
+        }
         sheetAction.text = if (latest != null) getString(R.string.share_package) else ""
         sheetAction.setOnClickListener {
             if (latest != null) shareZip(latest)
@@ -325,7 +393,12 @@ class MainActivity : AppCompatActivity(), Camera2Controller.Listener {
 
     private fun refreshThumb() {
         val latest = (application as CameraLabApp).experiments.list().firstOrNull() ?: return
-        val jpg = listOf(File(latest, "stock/reference.jpg"), File(latest, "preview.jpg")).firstOrNull { it.exists() }
+        val jpg = listOf(
+            File(latest, "hie/output.jpg"),
+            lastHieJpeg,
+            File(latest, "stock/reference.jpg"),
+            File(latest, "preview.jpg"),
+        ).firstOrNull { it != null && it.exists() }
         if (jpg != null) {
             thumb.setImageBitmap(BitmapFactory.decodeFile(jpg.absolutePath))
         }

@@ -1,6 +1,7 @@
 # Built APK
 
-`hanson-camera-lab-debug.apk` — debug-signed Camera Lab (`com.hanson.hie.cameralab.debug`).
+`hanson-camera-lab-debug.apk` — debug-signed Camera Lab (`com.hanson.hie.cameralab.debug`),
+version 0.2: on-device HIE v0.1 JPEG (`hie/output.jpg`) after each RAW burst.
 
 ```bash
 adb install -r hanson-camera-lab-debug.apk

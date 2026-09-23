@@ -121,6 +121,11 @@ class PackageWriter(
         meta.colorGains?.let {
             o.put("color_correction_gains", JSONArray().put(it[0]).put(it[1]).put(it[2]).put(it[3]))
         }
+        meta.colorTransform?.let {
+            val arr = JSONArray()
+            for (v in it) arr.put(v.toDouble())
+            o.put("color_correction_transform", arr)
+        }
         if (Build.VERSION.SDK_INT >= 28) {
             val ois = meta.result.get(CaptureResult.STATISTICS_OIS_SAMPLES)
             if (ois != null) {

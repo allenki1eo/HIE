@@ -19,7 +19,7 @@ analysis → gap → hypothesis → approval gate → new method → benchmark �
 | 10 | Failure analysis | done: F1–F4 plus negative results in [benchmark.md](benchmark.md#failure-analysis) |
 | 11 | Research hypothesis | done: H1 in [research-report-001.md](research-report-001.md) |
 | 12 | **Approval gate** | **waiting for human approval**. No allegedly novel algorithm has been implemented. H1 is not in the Android app or the Python engine. |
-| 13 | Hanson Camera Lab (milestone 2) | done as v0.1 of the Android app: Camera2 inspector, RAW burst + DNG, gyro/accel log, stock JPEG, Pixel-6 package layout. APK built from `android/`. On-device processing is the phone ISP JPEG plus a bilinear RAW preview — not a port of H1. |
+| 13 | Hanson Camera Lab (milestone 2) | done (v0.1 capture). v0.2 adds an on-device NDK port of the existing `hie_v0.1` stages so the phone writes `hie/output.jpg`. H1 is still not implemented. |
 
 ## Next work that does not need the approval gate
 
@@ -28,7 +28,7 @@ analysis → gap → hypothesis → approval gate → new method → benchmark �
 3. **Capture on Pixel 6 and other Android phones** with Camera Lab; measure `SENSOR_INFO_TIMESTAMP_SOURCE` vs gyro timestamps (needed before any gyro prior).
 4. **Reference-quality synthetic data**: replace the procedural chart with unprocessed real images (Brooks et al. 2019) for more natural statistics.
 5. **Perceptual metrics**: LPIPS and DISTS need PyTorch and pretrained weights, and are not in v0.1.
-6. **On-device HIE port** (later): Halide / NDK of the existing v0.1 stages. That is engineering, not a new method.
+6. **On-device HIE port**: done as engineering (NDK C++ of v0.1 stages). Remaining: Pixel-6 timing vs workstation `hie process`, lens-shading map, cubic-vs-Python numerical match.
 
 ## Roadmap (provisional, from the brief)
 

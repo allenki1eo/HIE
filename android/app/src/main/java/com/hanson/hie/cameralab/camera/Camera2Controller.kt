@@ -43,6 +43,7 @@ data class FrameMeta(
     val focusDistance: Float?,
     val lensState: Int?,
     val colorGains: FloatArray?,
+    val colorTransform: FloatArray?,
     val result: TotalCaptureResult,
 )
 
@@ -482,6 +483,14 @@ class Camera2Controller(
 
     private fun frameMeta(result: TotalCaptureResult): FrameMeta {
         val gains = result.get(CaptureResult.COLOR_CORRECTION_GAINS)
+        val xform = result.get(CaptureResult.COLOR_CORRECTION_TRANSFORM)
+        val matrix = if (xform != null) {
+            FloatArray(9) { i ->
+                val r = i / 3
+                val c = i % 3
+                xform.getElement(c, r).toFloat()
+            }
+        } else null
         return FrameMeta(
             sensorTimestampNs = result.get(CaptureResult.SENSOR_TIMESTAMP) ?: 0L,
             exposureNs = result.get(CaptureResult.SENSOR_EXPOSURE_TIME),
@@ -490,6 +499,7 @@ class Camera2Controller(
             focusDistance = result.get(CaptureResult.LENS_FOCUS_DISTANCE),
             lensState = result.get(CaptureResult.LENS_STATE),
             colorGains = gains?.let { floatArrayOf(it.red, it.greenEven, it.greenOdd, it.blue) },
+            colorTransform = matrix,
             result = result,
         )
     }

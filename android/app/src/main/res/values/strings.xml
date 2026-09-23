@@ -14,4 +14,7 @@
     <string name="permission_required">Camera permission is required to capture bursts.</string>
     <string name="no_raw">This camera has no RAW_SENSOR output. Photo still works; Burst writes JPEG-only and records that in experiment.json.</string>
     <string name="capturing">Capturing…</string>
+    <string name="hie_merge">HIE merge…</string>
+    <string name="hie_jpeg">HIE JPEG</string>
+    <string name="share_hie">Share HIE JPEG</string>
 </resources>
