@@ -11,6 +11,6 @@ Rebuild: `cd android && ./gradlew :app:assembleDebug`
 
 SHA-256 of the copy committed with this tree:
 
-`fb57afcd5e98cb0399ca8d1b9ca22b75736cf90a143fbf27c435f716ac93ff7c`
+`f4c8c330fa456ac531cb81995601f621e83f05f16853a2b90c35820385342cc6`
 
 Do not treat a debug APK as a store release.
