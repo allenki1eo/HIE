@@ -93,10 +93,10 @@ class Camera2Controller(
     val sessionInfo: SessionInfo? get() = info
     val isCapturing: Boolean get() = capturing
 
-    fun start(cameraId: String, preview: Surface, viewW: Int, viewH: Int) {
+    fun start(cameraId: String, preview: Surface, viewW: Int = 0, viewH: Int = 0) {
         handler.post {
             try {
-                openLocked(cameraId, preview, viewW, viewH)
+                openLocked(cameraId, preview)
             } catch (e: Exception) {
                 listener.onError(e.message ?: e.toString())
             }
@@ -179,7 +179,7 @@ class Camera2Controller(
     }
 
     @SuppressLint("MissingPermission")
-    private fun openLocked(cameraId: String, preview: Surface, viewW: Int, viewH: Int) {
+    private fun openLocked(cameraId: String, preview: Surface) {
         closeLocked()
         previewSurface = preview
         val ch = mgr.getCameraCharacteristics(cameraId)
