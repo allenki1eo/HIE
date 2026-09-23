@@ -9,6 +9,7 @@
     hie bench hdrplus                     baselines on local HDR+ bursts (+ visual report)
     hie bench alignment                   failure analysis: aligners vs oracle alignment
     hie report RUN --export DIR           HTML report + Markdown tables from run directories
+    hie package validate PATH             check a Camera Lab experiment folder
 """
 
 from __future__ import annotations
@@ -19,6 +20,7 @@ import sys
 from pathlib import Path
 
 from .datasets import HDRPlusDataset, download_bursts, list_remote_bursts, load_dng_folder
+from .datasets.package import PackageError, validate_package
 from .datasets.inspect import describe_burst
 from .io import git_state, new_run_dir, save_jpeg, save_tiff16, write_record
 from .io.experiment import REPO_ROOT
@@ -97,6 +99,24 @@ def cmd_bench(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_package(args: argparse.Namespace) -> int:
+    try:
+        info = validate_package(args.path, require_dngs=not args.allow_empty_raw)
+    except PackageError as exc:
+        print(f"invalid package: {exc}", file=sys.stderr)
+        return 2
+    if args.json:
+        print(json.dumps(info, indent=2))
+    else:
+        print(f"{info['path']}: {info['dng_count']} DNG · motion={info['motion_samples']} · "
+              f"stock={info['has_stock_jpeg']} · ok={info['ok']}")
+        for n in info["notes"]:
+            print(f"  note: {n}")
+        for p in info["problems"]:
+            print(f"  problem: {p}")
+    return 0 if info["ok"] else 2
+
+
 def cmd_report(args: argparse.Namespace) -> int:
     from .report.html import build_report
     findings = json.loads(Path(args.findings).read_text()) if args.findings else None
@@ -148,6 +168,13 @@ def main(argv: list[str] | None = None) -> int:
     rp.add_argument("--findings", help="JSON list of finding sentences for the report header")
     rp.add_argument("--export", help="directory for committed summaries + generated tables")
     rp.set_defaults(fn=cmd_report)
+
+    pk = sub.add_parser("package", help="Camera Lab experiment packages")
+    pk.add_argument("action", choices=["validate"])
+    pk.add_argument("path")
+    pk.add_argument("--json", action="store_true")
+    pk.add_argument("--allow-empty-raw", action="store_true", help="do not require raw/*.dng (schema tests)")
+    pk.set_defaults(fn=cmd_package)
 
     args = p.parse_args(argv)
     return args.fn(args)

@@ -5,7 +5,7 @@ Status legend for each entry:
 - **Verified** — details below were checked against the primary source (paper PDF, publisher or arXiv page) during this review.
 - **Cited** — a standard method reference used by HIE code; bibliographic details are from the standard citation and were not re-fetched in this pass.
 
-Searches in this pass used the web (arXiv, ACM DL, CVF Open Access, IPOL, Google Research, Google Patents / USPTO). IEEE Xplore, WIPO and EPO were **not** searched yet; that gap is tracked in [prior-art.md](prior-art.md#search-log).
+Searches in this pass used the web (arXiv, ACM DL, CVF Open Access, IPOL, Google Research, Google Patents / USPTO). A second pass (2026-09-23) opened Google Patents for US 9,313,420 and US 9,087,391, IEEE Xplore bibliographic pages, WIPO PATENTSCOPE abstracts, and papers on gyro-initialised burst alignment, semantic ISP and uncertainty calibration. EPO Espacenet returned only the search UI (JavaScript), so EPO full-text remains open. IEEE Xplore HTML full texts were blocked by a captcha; those entries use the arXiv or abstract text that was actually opened. The log is in [prior-art.md](prior-art.md#search-log).
 
 ---
 
@@ -82,11 +82,61 @@ Searches in this pass used the web (arXiv, ACM DL, CVF Open Access, IPOL, Google
 | Sharma, Wu, Dalal — *The CIEDE2000 color-difference formula*, Color Res. Appl. 2005 | Cited (test pairs reproduced exactly in unit tests) | ΔE2000 |
 | Adobe — DNG Specification 1.4/1.6 | Cited | DNG tags, colour pipeline, opcodes |
 
+## Gyro-initialised burst alignment
+
+### Inertia Sensor Aided Alignment for Burst Pipeline in Low Light Conditions · Verified (arXiv)
+- **Authors:** S. Zhang, R. L. Stevenson
+- **Venue:** IEEE (Xplore document [8451134](https://ieeexplore.ieee.org/document/8451134); HTML full text blocked) · [arXiv:1811.02013](https://arxiv.org/abs/1811.02013) (opened)
+- **Method (as stated on arXiv):** integrate smartphone gyro angular velocity (Runge–Kutta) to a rotation matrix, convert with camera intrinsics; estimate 3-D translation from SURF matches; form an initial homography `H0 = R0 + T0 n0ᵀ`; refine the 8 homography parameters with an unscented Kalman filter using the feature matches as observations; then run a Gaussian-pyramid tile alignment (HDR+-style) and a frequency-domain hybrid Wiener merge on Bayer raw.
+- **Relation to HIE:** this is published gyro-*initialised* burst alignment on raw smartphone bursts. Direction #5 in the brief is therefore covered as a research claim. Measuring camera–gyro sync error on Pixel 6 (Karpenko 2011; Camera2 `SENSOR_INFO_TIMESTAMP_SOURCE`) is still a necessary *experiment* before any gyro prior is used, and is what Hanson Camera Lab logs.
+
+### GyroFlow — gyroscope-guided unsupervised optical flow · Verified (CVF PDF)
+- **Authors:** H. Li, K. Luo, B. Zeng, S. Liu
+- **Venue:** ICCV 2021 · [CVF PDF](https://openaccess.thecvf.com/content/ICCV2021/papers/Li_GyroFlow_Gyroscope-Guided_Unsupervised_Optical_Flow_Learning_ICCV_2021_paper.pdf)
+- **Method:** convert phone gyro readings to a “gyro field”; fuse it with image-based unsupervised flow via a self-guided fusion module. They read gyro from the Android HAL rather than the public API to reduce sync error.
+- **Relation:** learned gyro+image flow, not a raw burst merge. Relevant as a prior for any later learned aligner.
+
+### Related IEEE / WIPO hits (abstract level)
+- IEEE Xplore document [6831799](https://ieeexplore.ieee.org/document/6831799): abstract describes gyro + feature tracking for rolling-shutter correction, then stacking a smartphone burst (iPhone 5s / similar). Full paper not opened (Xplore captcha).
+- IEEE Xplore document [9509028](https://ieeexplore.ieee.org/document/9509028) (DeepOIS, abstract): a network that compensates OIS so gyro fields can still be used for alignment on OIS cameras.
+- WIPO [WO/2024/107273](https://patentscope.wipo.int/search/en/WO2024107273): orientation-sensor data used to *select* similar frames before compositing, not to initialise tile alignment.
+- WIPO [WO/2021/138870](https://patentscope.wipo.int/search/en/WO2021138870): multi-camera concurrent frames, warp to a benchmark, replace large residuals. Not gyro.
+
+## Semantic / region-aware ISP
+
+### Sky Optimization — semantically aware sky processing · Verified (arXiv)
+- **Authors:** O. Liba, L. Cai, Y.-T. Tsai, E. Eban, Y. Movshovitz-Attias, Y. Pritch, H. Chen, J. T. Barron (Google Research)
+- **Venue:** [arXiv:2006.10172](https://arxiv.org/abs/2006.10172) (opened)
+- **Method:** MorphNet-compressed sky segmentation at 256×256 on a mobile GPU (~50 ms), weighted-guided-filter upsample (Halide), then sky-only spatially varying white balance, tone, contrast and denoise. Integrated in an Android Camera2 pipeline; end-to-end < 0.5 s.
+- **Relation to HIE:** shipped semantic *finishing* of one region (sky). Direction #6 as “semantic ISP” is covered for sky. A narrower untested question is whether a semantic mask should change *temporal merge* (e.g. more averaging on sky, less on people). Night Sight’s mismatch maps are motion-based, not class-based.
+
+### DeepISP — end-to-end learned ISP · Verified (arXiv HTML)
+- **Authors:** E. Schwartz, R. Giryes, A. M. Bronstein
+- **Venue:** IEEE TIP 28(2), 2019 · [arXiv:1801.06724](https://arxiv.org/abs/1801.06724)
+- **Method:** CNN maps a low-light mosaiced raw to a finished RGB/JPEG (Samsung S7 pairs). Local residual corrections plus a *global* quadratic colour transform; the paper states it does not model local tone mapping or HDR.
+- **Relation:** learned full-ISP baseline (with PyNET). Not region-aware.
+
+### On-device panoptic segmentation for Camera · Verified (Apple ML Research page)
+- Apple Machine Learning Research, [On-device Panoptic Segmentation for Camera Using Transformers](https://machinelearning.apple.com/research/panoptic-segmentation) (opened).
+- Person / skin / hair / sky (and instance IDs) drive Portrait Mode, Photographic Styles, per-subject contrast in Smart HDR 4, and denoise/sharpen in low-texture regions.
+- **Relation:** production semantic ISP on iPhone. Same direction #6 coverage from a second vendor.
+
+## Uncertainty calibration (burst / imaging)
+
+No opened source applies *calibrated* (coverage-guaranteed) per-pixel uncertainty to a raw burst merge.
+
+- **QUTCC** (quantile regression + conformal calibration for imaging inverse problems) · Verified ([arXiv:2507.14760](https://arxiv.org/html/2507.14760)): pixel-wise intervals and uncertainty maps after conformal adjustment of quantile bounds. Demonstrated on imaging inverse problems / denoising, **not** on smartphone raw bursts or on an `N_eff` merge residual.
+- **KPN / Unprocessing / Night Sight / Super Res Zoom** (already in this review): they *condition* on a noise model or emit robustness / mismatch weights. Those weights are not evaluated as calibrated predictive σ (ECE, coverage).
+- Direction #3’s remaining sliver — a *calibrated* predictive per-pixel σ for the merge, checked for coverage on held-out bursts — was not found in this pass. That is a possible experiment, not a claim.
+
 ## Patents found so far
 
-| Patent | What it covers (from the abstract/summary) | Status |
+| Patent | What the opened text covers | Status |
 |---|---|---|
-| US 9,313,420 — *Intelligent computational imaging system* | analyse input frames, decide on multi-image processing, estimate SNR and dynamic range, and **incrementally increase the number of frames to maximise the summed SNR** | abstract only; full claims not yet read (USPTO/Google Patents returned 403/503) |
-| US 9,087,391 B2 — *Determining an image capture payload burst structure* (Google) | histogram of merged images → scene classification → burst structure (frame count, exposures) | search summary only; claims not yet read |
+| US 9,313,420 B2 — *Intelligent computational imaging system* (Seshadrinathan, Park, Nestares; Intel; 2016; expired 2024 for unpaid fees) | Independent method claim 16 (Google Patents page opened): analyse a first set of frames; if multi-image processing is chosen, determine a frame count for scene dynamic range, capture, align, merge; the minimum count is obtained by estimating SNR, dynamic range and a spectral-irradiance histogram, then **incrementally increasing the number of frames to maximise the sum of per-pixel SNR**. Device claims 10 and 18 repeat the same SNR-increment step. Description adds a camera noise model, short/long exposure search from histogram percentiles, 60 ms motion-blur cap, 3-D rotation alignment on raw Bayer, and ML merge. | Claims + description opened on [Google Patents](https://patents.google.com/patent/US9313420B2/en). Direction #2 (adaptive burst length / termination on *summed SNR of captured pixels*) is covered. Termination on the *reconstruction’s* per-pixel uncertainty after motion rejection is still not in these claims. |
+| US 9,087,391 B2 — *Determining an image capture payload burst structure* (Geiss, Hasinoff; Google; 2015) | Description (Google Patents opened) and independent claim 1 (patents-review / claim dump opened): a metering burst at different TETs → determine a long TET, a short TET and a TET *sequence* → capture a payload burst in that order, including a long–short–long subsequence → construct the output. Dependent claims cover HDR vs LDR histogram classification and single-TET LDR bursts. | Direction #1 (choosing burst structure / exposures from a metering sweep) is covered. Constant-exposure HDR+ bursts are the LDR special case. |
+| US 8,866,927 B2 — *…payload burst structure based on a metering image capture sweep* (Google) | Independent claim (opened on a claims dump): metering sweep → TET sequence; if the scene is classified LDR, all payload TETs are equal and frames are aligned and combined. | Sister patent to 9,087,391; same conclusion. |
+| WO/2024/107273 | Orientation-sensor frame *selection* before compositing. | Abstract only (WIPO PATENTSCOPE). |
+| WO/2021/138870 | Multi-camera concurrent capture, warp, residual replacement. | Abstract only (WIPO PATENTSCOPE). |
 
-Full-text claim review is required before any novelty statement about adaptive capture or burst termination.
+Adaptive capture, burst-structure planning and SNR-driven extra frames are patented and published. Hanson Camera Lab’s default burst policy is a **reproduction** of the published constant-exposure HDR+ / Night Sight time-budget idea (more frames in low light, cap 15), not a new method. It does **not** implement US 9,313,420’s incremental SNR loop or US 9,087,391’s bracketed TET sequence.

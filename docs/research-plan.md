@@ -9,7 +9,7 @@ analysis → gap → hypothesis → approval gate → new method → benchmark �
 |---|---|---|
 | 1 | Repository structure | done |
 | 2 | Research documentation | done (this folder) |
-| 3 | Literature investigation | first pass done, with systems papers verified against primary sources; IEEE Xplore, WIPO, EPO and full patent claims still open ([prior-art](prior-art.md#search-log)) |
+| 3 | Literature investigation | second pass 2026-09-23: US 9,313,420 and US 9,087,391 claims opened; IEEE Xplore bibliographic search; WIPO abstracts; gyro alignment, semantic ISP, uncertainty calibration recorded. EPO Espacenet still incomplete (JS-only UI). |
 | 4 | HDR+ dataset setup | done: MD5-verified downloader, manifest, attribution |
 | 5 | RAW inspection tool | done: `hie inspect` |
 | 6 | Single RAW baseline | done: preset `single` |
@@ -18,15 +18,17 @@ analysis → gap → hypothesis → approval gate → new method → benchmark �
 | 9 | Benchmark framework | done: `hie bench synthetic`, `hie bench hdrplus`, HTML report |
 | 10 | Failure analysis | done: F1–F4 plus negative results in [benchmark.md](benchmark.md#failure-analysis) |
 | 11 | Research hypothesis | done: H1 in [research-report-001.md](research-report-001.md) |
-| 12 | **Approval gate** | **waiting for human approval**. No allegedly novel algorithm has been implemented. |
+| 12 | **Approval gate** | **waiting for human approval**. No allegedly novel algorithm has been implemented. H1 is not in the Android app or the Python engine. |
+| 13 | Hanson Camera Lab (milestone 2) | done as v0.1 of the Android app: Camera2 inspector, RAW burst + DNG, gyro/accel log, stock JPEG, Pixel-6 package layout. APK built from `android/`. On-device processing is the phone ISP JPEG plus a bilinear RAW preview — not a port of H1. |
 
 ## Next work that does not need the approval gate
 
 1. **Cross-check the HDR+ reproduction** against the open IPOL implementation (Monod et al. 2021) on the same bursts.
-2. **Close the literature gaps**: IEEE Xplore, WIPO, EPO; full claims of US 9,313,420 and US 9,087,391; semantic ISP; uncertainty calibration in burst denoising; gyro-initialised burst alignment.
-3. **Hanson Camera Lab (milestone 2)**: a Camera2 capability inspector and RAW burst capture with gyro logging on the Pixel 6 ([android/README.md](../android/README.md)).
+2. **Finish EPO / IEEE full-text**: Espacenet returned no documents (JS shell); IEEE HTML was captcha-blocked. Abstracts and arXiv texts are recorded.
+3. **Capture on Pixel 6 and other Android phones** with Camera Lab; measure `SENSOR_INFO_TIMESTAMP_SOURCE` vs gyro timestamps (needed before any gyro prior).
 4. **Reference-quality synthetic data**: replace the procedural chart with unprocessed real images (Brooks et al. 2019) for more natural statistics.
 5. **Perceptual metrics**: LPIPS and DISTS need PyTorch and pretrained weights, and are not in v0.1.
+6. **On-device HIE port** (later): Halide / NDK of the existing v0.1 stages. That is engineering, not a new method.
 
 ## Roadmap (provisional, from the brief)
 

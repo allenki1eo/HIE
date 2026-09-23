@@ -28,3 +28,10 @@ research/experiments/**/output*
 .idea/
 .vscode/
 .DS_Store
+
+# Android
+android/.gradle/
+android/local.properties
+android/**/build/
+android/.cxx/
+
