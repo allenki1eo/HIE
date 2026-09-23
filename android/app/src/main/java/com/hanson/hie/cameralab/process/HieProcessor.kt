@@ -214,7 +214,7 @@ class HieProcessor(private val context: Context, private val store: ExperimentSt
         }
 
         fun whiteBalance(frames: List<RawCopy>): FloatArray {
-            val g = frames.firstOrNull { it.meta.colorGains != null }?.meta.colorGains
+            val g = frames.firstOrNull { it.meta.colorGains != null }?.meta?.colorGains
             return if (g != null && g.size >= 4) {
                 floatArrayOf(g[0], g[1], g[2], g[3])
             } else {
