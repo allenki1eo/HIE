@@ -38,5 +38,5 @@ v0.8 hybrid learned reconstruction · v1.0 integrated engine.
 
 ## Open decisions for the project owner
 
-- **Licence**: the repository is "all rights reserved" for now. The brief anticipates open-sourcing some research components; which ones is a business decision.
+- **Licence**: decided. HIE code and docs are Apache License 2.0 so others can use, modify, and contribute them ([LICENSE](../LICENSE), [CONTRIBUTING.md](../CONTRIBUTING.md)). The Google HDR+ dataset stays CC BY-SA and is not in this repository.
 - **Research direction** after the approval gate: see the options in the research report.

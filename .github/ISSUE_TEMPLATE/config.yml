@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Contributing guide
+    url: https://github.com/allenki1eo/HIE/blob/HEAD/CONTRIBUTING.md
+    about: How to set up, test, and open a pull request.
+  - name: Security report
+    url: https://github.com/allenki1eo/HIE/security/advisories/new
+    about: Report a vulnerability in private. Do not open a public issue.
