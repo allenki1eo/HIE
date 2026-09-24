@@ -1,0 +1,14 @@
+cff-version: 1.2.0
+title: Hanson Image Engine
+message: If you use this software, please cite it.
+type: software
+authors:
+  - name: Hanson Technologies
+repository-code: https://github.com/allenki1eo/HIE
+license: Apache-2.0
+version: 0.1.0
+date-released: 2026-09-24
+abstract: >-
+  Computational photography research engine for smartphone RAW bursts.
+  Version 0.1 reproduces established burst alignment, fusion, and rendering
+  and benchmarks them. It does not claim a new algorithm.

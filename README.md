@@ -79,11 +79,20 @@ research/        experiment notes, algorithm proposals
 android/         Hanson Camera Lab: Camera2 RAW burst + gyro log + inspector (debug APK via Gradle)
 ```
 
+## Collaborating
+
+Outside contributions are welcome under the [Apache License 2.0](LICENSE).
+There is no separate contributor agreement: a pull request is licensed under
+Apache 2.0. Start with [CONTRIBUTING.md](CONTRIBUTING.md), the
+[code of conduct](CODE_OF_CONDUCT.md), and [SECURITY.md](SECURITY.md).
+
 ## Data and licence
 
+HIE's code and documentation are [Apache License 2.0](LICENSE)
+(copyright 2026 Hanson Technologies). See [NOTICE](NOTICE).
+
 Real-image results use the **Google HDR+ Burst Photography Dataset** (Hasinoff et al., SIGGRAPH Asia
-2016), licensed **CC BY-SA**. It is not redistributed here; see
-[datasets/google-hdr-plus/README.md](datasets/google-hdr-plus/README.md). HIE's own code is
-"all rights reserved" for now ([LICENSE](LICENSE)); the open-sourcing decision belongs to the owner.
+2016), licensed **CC BY-SA**. That dataset is not covered by the Apache licence and is not
+redistributed here; see [datasets/google-hdr-plus/README.md](datasets/google-hdr-plus/README.md).
 
 *Capture intelligently. Measure uncertainty. Recover information. Preserve reality.*
